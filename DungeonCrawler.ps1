@@ -27,12 +27,16 @@ $ModulePaths = @(
 $RaceDataPath = Join-Path $AppRoot 'Data\Races.psd1'
 $SkillDataPath = Join-Path $AppRoot 'Data\Skills.psd1'
 $GameRulesPath = Join-Path $AppRoot 'Data\GameRules.psd1'
+$CombatRulesPath = Join-Path $AppRoot 'Data\CombatRules.psd1'
+$ProgressionRulesPath = Join-Path $AppRoot 'Data\ProgressionRules.psd1'
 
 $RequiredFiles = @(
     $NativeSourcePath
     $RaceDataPath
     $SkillDataPath
     $GameRulesPath
+    $CombatRulesPath
+    $ProgressionRulesPath
 ) + $ModulePaths
 
 foreach ($RequiredFile in $RequiredFiles) {
@@ -53,6 +57,8 @@ foreach ($ModulePath in $ModulePaths) {
 $RaceData = Import-PowerShellDataFile -LiteralPath $RaceDataPath
 $SkillData = Import-PowerShellDataFile -LiteralPath $SkillDataPath
 $GameRules = Import-PowerShellDataFile -LiteralPath $GameRulesPath
+$CombatRules = Import-PowerShellDataFile -LiteralPath $CombatRulesPath
+$ProgressionRules = Import-PowerShellDataFile -LiteralPath $ProgressionRulesPath
 
 function Assert-GameData {
     param(
@@ -102,13 +108,25 @@ function Assert-GameData {
         throw 'Exactly six character attributes are required.'
     }
 
-    if ($Skills.SkillOrder.Count -ne 27) {
-        throw "The current design requires exactly 27 skills. Found: $($Skills.SkillOrder.Count)"
+    if ($Skills.SkillOrder.Count -ne 28) {
+        throw "The current design requires exactly 28 skills. Found: $($Skills.SkillOrder.Count)"
     }
 
     $UniqueSkills = @($Skills.SkillOrder | Sort-Object -Unique)
     if ($UniqueSkills.Count -ne $Skills.SkillOrder.Count) {
         throw 'Skills.psd1 contains duplicate skills.'
+    }
+
+    if ($Skills.SkillOrder -notcontains 'Defense') {
+        throw 'Skills.psd1 must contain the Defense skill.'
+    }
+
+    if (-not $Skills.Categories.ContainsKey('Combat')) {
+        throw 'Skills.psd1 must contain the Combat category.'
+    }
+
+    if (@($Skills.Categories.Combat) -notcontains 'Defense') {
+        throw 'The Defense skill must be in the Combat category.'
     }
 
     foreach ($Attribute in $Rules.Attributes) {
@@ -199,7 +217,274 @@ function Assert-GameData {
     }
 }
 
+function Assert-CombatRules {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Rules
+    )
+
+    foreach ($RequiredKey in @(
+        'Initiative'
+        'Round'
+        'Turn'
+        'Actions'
+        'Movement'
+        'StatusEffects'
+        'Evasion'
+        'Accuracy'
+        'AttackResolution'
+        'Defense'
+    )) {
+        if (-not $Rules.ContainsKey($RequiredKey)) {
+            throw "CombatRules.psd1 is missing key: $RequiredKey"
+        }
+    }
+
+    if ($Rules.Initiative.PrimaryAttribute -ne 'Agility') {
+        throw 'Combat initiative must use Agility first.'
+    }
+
+    if ($Rules.Initiative.SecondaryAttribute -ne 'Wisdom') {
+        throw 'Combat initiative must use Wisdom second.'
+    }
+
+    if ($Rules.Initiative.TieBreaker -ne 'D100') {
+        throw 'Combat initiative ties must use D100.'
+    }
+
+    if (
+        -not $Rules.Initiative.EnemyNumbering.AssignAfterInitiative -or
+        -not $Rules.Initiative.EnemyNumbering.StableForEncounter -or
+        $Rules.Initiative.EnemyNumbering.RenumberAfterDefeat -or
+        $Rules.Initiative.EnemyNumbering.RenumberAfterInitiativeChange -or
+        $Rules.Initiative.EnemyNumbering.ReinforcementAssignment -ne 'NextUnused' -or
+        $Rules.Initiative.EnemyNumbering.ReuseNumbers
+    ) {
+        throw 'Enemy numbering rules do not match the approved design.'
+    }
+
+    if (
+        $Rules.Round.Definition -ne 'OneCompleteInitiativePass' -or
+        $Rules.Round.MechanicalRefresh
+    ) {
+        throw 'Round rules do not match the approved design.'
+    }
+
+    if (
+        (@($Rules.Turn.AvailablePhases) -join ',') -ne
+        'Movement,Action,Reaction'
+    ) {
+        throw 'Turn phases do not match the approved design.'
+    }
+
+    if (
+        $Rules.Turn.MovementCanSplit -or
+        $Rules.Turn.ActionCanSplit -or
+        $Rules.Turn.UnusedMovementCarriesForward -or
+        $Rules.Turn.UnusedActionCarriesForward
+    ) {
+        throw 'Movement and Action must remain indivisible and nonbanking.'
+    }
+
+    if (
+        $Rules.Turn.MovementRefresh -ne 'StartOfOwnTurn' -or
+        $Rules.Turn.ActionRefresh -ne 'StartOfOwnTurn' -or
+        $Rules.Turn.ReactionRefresh -ne 'StartOfOwnTurn' -or
+        [int]$Rules.Turn.ReactionUsesBeforeRefresh -ne 1
+    ) {
+        throw 'Turn refresh rules do not match the approved design.'
+    }
+
+    if (
+        (@($Rules.Actions.Available) -join ',') -ne
+        'Attack,Ability,Item,Defend,Interact'
+    ) {
+        throw 'Combat actions do not match the approved design.'
+    }
+
+    if (
+        $Rules.Actions.ItemRequiredTag -ne 'Usable' -or
+        -not $Rules.Actions.InteractIsContextual -or
+        $Rules.Actions.DefendDuration -ne 'UntilNextTurn'
+    ) {
+        throw 'Combat action rules do not match the approved design.'
+    }
+
+    if (
+        [int]$Rules.Movement.SquareFeet -ne 5 -or
+        [int]$Rules.Movement.States.Slow -ne 10 -or
+        [int]$Rules.Movement.States.Normal -ne 20 -or
+        [int]$Rules.Movement.States.Fast -ne 30 -or
+        $Rules.Movement.DefaultState -ne 'Normal' -or
+        $Rules.Movement.DerivedFromAgility
+    ) {
+        throw 'Movement rules do not match the approved design.'
+    }
+
+    if (
+        (@($Rules.StatusEffects.Types) -join ',') -ne
+        'Continuous,Triggered'
+    ) {
+        throw 'Status effect types do not match the approved design.'
+    }
+
+    if (
+        -not $Rules.StatusEffects.Continuous.PersistsOutsideCombat -or
+        $Rules.StatusEffects.Continuous.TurnCountRequired -or
+        -not $Rules.StatusEffects.Triggered.CombatOnly -or
+        -not $Rules.StatusEffects.Triggered.TurnCountRequired -or
+        (@($Rules.StatusEffects.Triggered.ResolutionPriority) -join ',') -ne
+        'CC,Debuff,Buff'
+    ) {
+        throw 'Status effect timing rules do not match the approved design.'
+    }
+
+    if (
+        [int]$Rules.Evasion.BaseChance -ne 10 -or
+        [int]$Rules.Evasion.DifferenceStep -ne 5 -or
+        [int]$Rules.Evasion.MinimumChance -ne 5 -or
+        [int]$Rules.Evasion.MaximumChance -ne 40 -or
+        $Rules.Evasion.Attack.AttackerAttribute -ne 'Agility' -or
+        $Rules.Evasion.Attack.DefenderAttribute -ne 'Agility' -or
+        $Rules.Evasion.PhysicalAbility.AttackerAttribute -ne 'Agility' -or
+        $Rules.Evasion.PhysicalAbility.DefenderAttribute -ne 'Agility' -or
+        $Rules.Evasion.MagicAbility.AttackerAttribute -ne 'Wisdom' -or
+        $Rules.Evasion.MagicAbility.DefenderAttribute -ne 'Agility'
+    ) {
+        throw 'Evasion rules do not match the approved design.'
+    }
+
+    if (
+        [int]$Rules.Accuracy.BaseChance -ne 70 -or
+        [int]$Rules.Accuracy.DifferenceDivisor -ne 2 -or
+        [int]$Rules.Accuracy.MinimumChance -ne 10 -or
+        [int]$Rules.Accuracy.MaximumChance -ne 95 -or
+        $Rules.Accuracy.DefenderSkill -ne 'Defense'
+    ) {
+        throw 'Accuracy rules do not match the approved design.'
+    }
+
+    $ExpectedAttackResolution = @(
+        'ValidateTarget'
+        'ConfirmAndSpendAction'
+        'ResolveEvasion'
+        'StopIfEvaded'
+        'ResolveAccuracyForAttack'
+        'StopIfAccuracyFails'
+        'CheckEligibleReactions'
+        'ResolveDamage'
+        'ApplyAttachedEffects'
+        'CheckDefeat'
+    )
+
+    $ActualAttackResolution = @($Rules.AttackResolution) -join ','
+    $ExpectedAttackResolutionText = $ExpectedAttackResolution -join ','
+
+    if (
+        $ActualAttackResolution -ne
+        $ExpectedAttackResolutionText
+    ) {
+        throw 'Attack resolution order does not match the approved design.'
+    }
+
+    if (
+        $Rules.Defense.Skill -ne 'Defense' -or
+        $Rules.Defense.Opposes -ne 'WeaponSkill' -or
+        $Rules.Defense.ProgressionTrigger -ne 'TakingDamage'
+    ) {
+        throw 'Defense skill rules do not match the approved design.'
+    }
+}
+
+function Assert-ProgressionRules {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Rules,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$GameRules
+    )
+
+    foreach ($RequiredKey in @(
+        'StartingLevel'
+        'MaximumLevel'
+        'PerkPointsPerGainedLevel'
+        'FirstPerkAwardLevel'
+        'TotalPerkPointsAtMaximumLevel'
+        'SkillProgression'
+    )) {
+        if (-not $Rules.ContainsKey($RequiredKey)) {
+            throw "ProgressionRules.psd1 is missing key: $RequiredKey"
+        }
+    }
+
+    if (
+        [int]$Rules.StartingLevel -ne 0 -or
+        [int]$Rules.MaximumLevel -ne 50 -or
+        [int]$Rules.PerkPointsPerGainedLevel -ne 1 -or
+        [int]$Rules.FirstPerkAwardLevel -ne 1 -or
+        [int]$Rules.TotalPerkPointsAtMaximumLevel -ne 50
+    ) {
+        throw 'Character level and perk rules do not match the approved design.'
+    }
+
+    $SkillProgression = $Rules.SkillProgression
+
+    if (
+        -not $SkillProgression.ImprovesThroughUse -or
+        [int]$SkillProgression.FirstProgressionLevel -ne 1 -or
+        [int]$SkillProgression.MaximumRanksPerSkillPerLevel -ne 3 -or
+        -not $SkillProgression.IndependentPerSkill -or
+        $SkillProgression.SharedSkillPointPool -or
+        [int]$SkillProgression.MinimumRank -ne
+            [int]$GameRules.SkillMinimum -or
+        [int]$SkillProgression.MaximumRank -ne
+            [int]$GameRules.SkillMaximum -or
+        [int]$SkillProgression.EarliestMaximumLevelFromMinimum -ne 34
+    ) {
+        throw 'Skill progression rules do not match the approved design.'
+    }
+
+    $ProgressionWindowsNeeded = [int][Math]::Ceiling(
+        (
+            [double]$SkillProgression.MaximumRank -
+            [double]$SkillProgression.MinimumRank
+        ) /
+        [double]$SkillProgression.MaximumRanksPerSkillPerLevel
+    )
+
+    $CalculatedEarliestMaximumLevel = (
+        [int]$SkillProgression.FirstProgressionLevel +
+        $ProgressionWindowsNeeded -
+        1
+    )
+
+    if (
+        $CalculatedEarliestMaximumLevel -ne
+        [int]$SkillProgression.EarliestMaximumLevelFromMinimum
+    ) {
+        throw 'The stored earliest skill-mastery level is inconsistent.'
+    }
+
+    $CalculatedTotalPerkPoints = (
+        [int]$Rules.MaximumLevel -
+        [int]$Rules.FirstPerkAwardLevel +
+        1
+    ) * [int]$Rules.PerkPointsPerGainedLevel
+
+    if (
+        $CalculatedTotalPerkPoints -ne
+        [int]$Rules.TotalPerkPointsAtMaximumLevel
+    ) {
+        throw 'The stored maximum perk-point total is inconsistent.'
+    }
+}
+
 Assert-GameData -Races $RaceData -Skills $SkillData -Rules $GameRules
+Assert-CombatRules -Rules $CombatRules
+Assert-ProgressionRules `
+    -Rules $ProgressionRules `
+    -GameRules $GameRules
 
 $RequiredCommands = @(
     'Invoke-MainMenu'

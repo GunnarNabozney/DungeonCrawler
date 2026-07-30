@@ -11,8 +11,8 @@
     AttributeDescriptions = @{
         Strength = 'Physical power, melee damage, and carrying capacity.'
         Intelligence = 'Maximum mana and offensive spell power.'
-        Wisdom = 'Mana recovery, healing, protective magic, and resistance to magical effects.'
-        Agility = 'Accuracy, attack speed, evasion, and critical strikes.'
+        Wisdom = 'Secondary initiative, mana recovery, healing, protective magic, magical resistance, and overcoming evasion with magic abilities.'
+        Agility = 'Primary initiative, evasion, and overcoming evasion with attacks or physical abilities.'
         Fortitude = 'Maximum health and resistance to poison or disease.'
         Charisma = 'Buying and selling prices and improved quest rewards.'
     }
