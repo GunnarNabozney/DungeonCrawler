@@ -832,58 +832,6 @@ function Set-CharacterDraftMinorSkills {
     return $CharacterDraft
 }
 
-function Show-CharacterCreationComplete {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [object]$CharacterDraft
-    )
-
-    ConsoleUI\Clear-ConsoleScreen
-    ConsoleUI\Draw-Frame
-    ConsoleUI\Write-Centered -Y 1 -Text 'CHARACTER CREATION COMPLETE' -Color Yellow
-
-    ConsoleUI\Write-At -X 7 -Y 4 -Text "Name:   $($CharacterDraft.Name)" -Color Gray
-    ConsoleUI\Write-At -X 7 -Y 5 -Text "Race:   $($CharacterDraft.Race)" -Color Gray
-    ConsoleUI\Write-At -X 7 -Y 6 -Text "Gender: $($CharacterDraft.Gender)" -Color Gray
-
-    ConsoleUI\Write-At -X 7 -Y 9 -Text 'ATTRIBUTES' -Color DarkYellow
-
-    $AttributeLayout = @(
-        @('Strength', 11, 7)
-        @('Intelligence', 12, 7)
-        @('Wisdom', 13, 7)
-        @('Agility', 11, 36)
-        @('Fortitude', 12, 36)
-        @('Charisma', 13, 36)
-    )
-
-    foreach ($Entry in $AttributeLayout) {
-        $Attribute = [string]$Entry[0]
-        $Y = [int]$Entry[1]
-        $X = [int]$Entry[2]
-
-        ConsoleUI\Write-At `
-            -X $X `
-            -Y $Y `
-            -Text ('{0,-13} {1,2}' -f $Attribute, $CharacterDraft.Attributes[$Attribute]) `
-            -Color Gray
-    }
-
-    ConsoleUI\Write-At -X 7 -Y 16 -Text 'RACIAL PROFICIENCIES' -Color DarkYellow
-    ConsoleUI\Write-At -X 9 -Y 18 -Text ($CharacterDraft.RacialProficiencies -join ', ') -Color Yellow
-
-    ConsoleUI\Write-At -X 7 -Y 20 -Text 'TAG SKILLS' -Color DarkYellow
-    ConsoleUI\Write-At -X 9 -Y 22 -Text ($CharacterDraft.MinorTaggedSkills -join ', ') -Color Yellow
-
-    ConsoleUI\Write-Centered `
-        -Y 26 `
-        -Text 'Press any key to return to the main menu...' `
-        -Color DarkYellow
-
-    ConsoleInput\Wait-ForAnyKey
-}
-
 function Invoke-TagSkillsScreen {
     [CmdletBinding()]
     param(
@@ -1214,13 +1162,10 @@ function Invoke-TagSkillsScreen {
                                     -SkillData $SkillData `
                                     -GameRules $GameRules
 
-                            Show-CharacterCreationComplete `
-                                -CharacterDraft (
-                                    $CharacterDraft
-                                )
-
                             return [pscustomobject]@{
-                                NextState = 'MAIN_MENU'
+                                NextState =
+                                    'CHARACTER_CONFIRMATION'
+
                                 CharacterDraft =
                                     $CharacterDraft
                             }

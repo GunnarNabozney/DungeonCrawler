@@ -19,6 +19,7 @@ $ModulePaths = @(
     (Join-Path $AppRoot 'Screens\MainMenu.psm1')
     (Join-Path $AppRoot 'Screens\CharacterCreator.psm1')
     (Join-Path $AppRoot 'Screens\TagSkills.psm1')
+    (Join-Path $AppRoot 'Screens\CharacterConfirmation.psm1')
     (Join-Path $AppRoot 'Screens\LoadGame.psm1')
 )
 
@@ -203,6 +204,7 @@ $RequiredCommands = @(
     'Invoke-MainMenu'
     'Invoke-CharacterCreatorScreen'
     'Invoke-TagSkillsScreen'
+    'Invoke-CharacterConfirmationScreen'
     'Invoke-LoadGameScreen'
     'Get-PrimarySaveGame'
     'Save-PrimaryCharacter'
@@ -333,8 +335,54 @@ try {
                 }
             }
 
+            'CHARACTER_CONFIRMATION' {
+                if ($null -eq $CharacterDraft) {
+                    throw 'Character confirmation requires a character draft.'
+                }
+
+                $ConfirmationResult = Invoke-CharacterConfirmationScreen `
+                    -AppRoot $AppRoot `
+                    -CharacterDraft $CharacterDraft
+
+                if ($null -eq $ConfirmationResult) {
+                    throw 'Character confirmation returned no result.'
+                }
+
+                $ConfirmationProperties = @(
+                    $ConfirmationResult.PSObject.Properties.Name
+                )
+
+                if ($ConfirmationProperties -notcontains 'NextState') {
+                    throw 'Character confirmation result has no NextState.'
+                }
+
+                if ($ConfirmationProperties -contains 'CharacterDraft') {
+                    $CharacterDraft = $ConfirmationResult.CharacterDraft
+                }
+
+                $ApplicationState = [string]$ConfirmationResult.NextState
+            }
             'LOAD_GAME' {
-                $ApplicationState = Invoke-LoadGameScreen
+                $LoadResult = Invoke-LoadGameScreen `
+                    -AppRoot $AppRoot
+
+                if ($null -eq $LoadResult) {
+                    throw 'Load Game returned no result.'
+                }
+
+                $LoadProperties = @(
+                    $LoadResult.PSObject.Properties.Name
+                )
+
+                if ($LoadProperties -notcontains 'NextState') {
+                    throw 'Load Game result has no NextState.'
+                }
+
+                if ($LoadProperties -contains 'CharacterDraft') {
+                    $CharacterDraft = $LoadResult.CharacterDraft
+                }
+
+                $ApplicationState = [string]$LoadResult.NextState
             }
 
             default {
