@@ -14,6 +14,7 @@ $ModulePaths = @(
     (Join-Path $AppRoot 'Engine\ConsoleUI.psm1')
     (Join-Path $AppRoot 'Engine\ConsoleInput.psm1')
     (Join-Path $AppRoot 'Engine\Animations.psm1')
+    (Join-Path $AppRoot 'Engine\SaveGame.psm1')
     (Join-Path $AppRoot 'Screens\MainMenu.psm1')
     (Join-Path $AppRoot 'Screens\CharacterCreator.psm1')
     (Join-Path $AppRoot 'Screens\TagSkills.psm1')
@@ -202,6 +203,8 @@ $RequiredCommands = @(
     'Invoke-CharacterCreatorScreen'
     'Invoke-TagSkillsScreen'
     'Invoke-LoadGameScreen'
+    'Get-PrimarySaveGame'
+    'Save-PrimaryCharacter'
     'Write-At'
     'Clear-ConsoleScreen'
     'Invoke-ConsoleRedraw'
