@@ -1,0 +1,6 @@
+/Backups/
+*.backup.*
+*.tmp
+*.log
+
+/Logs/
