@@ -129,50 +129,30 @@ function Get-TagSkillButtons {
         [object[]]$SkillSections
     )
 
-    $Buttons = @()
+    $Buttons =
+        [System.Collections.Generic.List[object]]::new()
 
     foreach ($Section in $SkillSections) {
-        for ($Row = 0; $Row -lt $Section.Skills.Count; $Row++) {
-            $Buttons += [pscustomobject]@{
-                Skill = [string]$Section.Skills[$Row]
-                Category = [string]$Section.Name
-                X = [int]$Section.X
-                Y = [int]$Section.HeaderY + 1 + $Row
-                Width = 35
-            }
+        for (
+            $Row = 0;
+            $Row -lt $Section.Skills.Count;
+            $Row++
+        ) {
+            [void]$Buttons.Add(
+                [pscustomobject]@{
+                    Skill =
+                        [string]$Section.Skills[$Row]
+
+                    Category = [string]$Section.Name
+                    X = [int]$Section.X
+                    Y = [int]$Section.HeaderY + 1 + $Row
+                    Width = 35
+                }
+            )
         }
     }
 
-    return $Buttons
-}
-
-function Test-TagPointInRect {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [int]$PointX,
-
-        [Parameter(Mandatory = $true)]
-        [int]$PointY,
-
-        [Parameter(Mandatory = $true)]
-        [int]$X,
-
-        [Parameter(Mandatory = $true)]
-        [int]$Y,
-
-        [Parameter(Mandatory = $true)]
-        [int]$Width,
-
-        [int]$Height = 1
-    )
-
-    return (
-        $PointX -ge $X -and
-        $PointX -lt ($X + $Width) -and
-        $PointY -ge $Y -and
-        $PointY -lt ($Y + $Height)
-    )
+    return $Buttons.ToArray()
 }
 
 function Get-TagSkillTargetAt {
@@ -182,10 +162,7 @@ function Get-TagSkillTargetAt {
         [object[]]$SkillButtons,
 
         [Parameter(Mandatory = $true)]
-        [object]$BackButton,
-
-        [Parameter(Mandatory = $true)]
-        [object]$ContinueButton,
+        [object[]]$ActionButtons,
 
         [Parameter(Mandatory = $true)]
         [int]$X,
@@ -195,24 +172,22 @@ function Get-TagSkillTargetAt {
     )
 
     foreach ($Button in $SkillButtons) {
-        $InsideButton = Test-TagPointInRect `
-            -PointX $X `
-            -PointY $Y `
-            -X $Button.X `
-            -Y $Button.Y `
-            -Width $Button.Width
-
-        if ($InsideButton) {
+        if (
+            ConsoleUI\Test-PointInRect `
+                -PointX $X `
+                -PointY $Y `
+                -X $Button.X `
+                -Y $Button.Y `
+                -Width $Button.Width
+        ) {
             return "Skill:$($Button.Skill)"
         }
     }
 
-    $ActionTarget = ConsoleUI\Get-ButtonAt `
-        -Buttons @($BackButton, $ContinueButton) `
+    return ConsoleUI\Get-ButtonAt `
+        -Buttons $ActionButtons `
         -X $X `
         -Y $Y
-
-    return $ActionTarget
 }
 
 function Get-TagSkillFromTarget {
@@ -230,34 +205,6 @@ function Get-TagSkillFromTarget {
     }
 
     return $Target.Split(':', 2)[1]
-}
-
-function Get-TagSkillValue {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Skill,
-
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
-
-        [Parameter(Mandatory = $true)]
-        [string[]]$RacialSkills,
-
-        [Parameter(Mandatory = $true)]
-        [hashtable]$GameRules
-    )
-
-    if ($RacialSkills -contains $Skill) {
-        return [int]$GameRules.RacialProficiencyStart
-    }
-
-    if ($SelectedSkills -contains $Skill) {
-        return [int]$GameRules.MinorTagSkillStart
-    }
-
-    return [int]$GameRules.SkillMinimum
 }
 
 function Get-TagSkillButtonColor {
@@ -370,18 +317,20 @@ function Draw-TagSkillHeaders {
     }
 }
 
-function Draw-TagSkillButtons {
+function Draw-TagSkillButton {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [object[]]$SkillButtons,
+        [object]$Button,
 
         [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
+        [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
-        [string[]]$RacialSkills,
+        [System.Collections.Generic.HashSet[string]]$RacialSkillSet,
+
+        [Parameter(Mandatory = $true)]
+        [int]$SelectedCount,
 
         [Parameter(Mandatory = $true)]
         [hashtable]$GameRules,
@@ -393,41 +342,86 @@ function Draw-TagSkillButtons {
         [string]$PressedTarget
     )
 
+    $Selected =
+        $SelectedSkillSet.Contains($Button.Skill)
+
+    $Locked =
+        $RacialSkillSet.Contains($Button.Skill)
+
+    if ($Locked) {
+        $Value =
+            [int]$GameRules.RacialProficiencyStart
+    }
+    elseif ($Selected) {
+        $Value =
+            [int]$GameRules.MinorTagSkillStart
+    }
+    else {
+        $Value =
+            [int]$GameRules.SkillMinimum
+    }
+
     $SelectionFull = (
-        $SelectedSkills.Count -ge
+        $SelectedCount -ge
         [int]$GameRules.MinorTagSkillCount
     )
 
+    $Color = Get-TagSkillButtonColor `
+        -Skill $Button.Skill `
+        -HoverTarget $HoverTarget `
+        -PressedTarget $PressedTarget `
+        -Selected $Selected `
+        -Locked $Locked `
+        -SelectionFull $SelectionFull
+
+    $Text = Get-TagSkillButtonText `
+        -Skill $Button.Skill `
+        -Value $Value `
+        -Width $Button.Width `
+        -Selected $Selected `
+        -Locked $Locked
+
+    ConsoleUI\Write-At `
+        -X $Button.X `
+        -Y $Button.Y `
+        -Text $Text `
+        -Color $Color
+}
+
+function Draw-TagSkillButtons {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$SkillButtons,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.HashSet[string]]$RacialSkillSet,
+
+        [Parameter(Mandatory = $true)]
+        [int]$SelectedCount,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$GameRules,
+
+        [AllowNull()]
+        [string]$HoverTarget,
+
+        [AllowNull()]
+        [string]$PressedTarget
+    )
+
     foreach ($Button in $SkillButtons) {
-        $Selected = $SelectedSkills -contains $Button.Skill
-        $Locked = $RacialSkills -contains $Button.Skill
-
-        $Value = Get-TagSkillValue `
-            -Skill $Button.Skill `
-            -SelectedSkills $SelectedSkills `
-            -RacialSkills $RacialSkills `
-            -GameRules $GameRules
-
-        $Color = Get-TagSkillButtonColor `
-            -Skill $Button.Skill `
+        Draw-TagSkillButton `
+            -Button $Button `
+            -SelectedSkillSet $SelectedSkillSet `
+            -RacialSkillSet $RacialSkillSet `
+            -SelectedCount $SelectedCount `
+            -GameRules $GameRules `
             -HoverTarget $HoverTarget `
-            -PressedTarget $PressedTarget `
-            -Selected $Selected `
-            -Locked $Locked `
-            -SelectionFull $SelectionFull
-
-        $Text = Get-TagSkillButtonText `
-            -Skill $Button.Skill `
-            -Value $Value `
-            -Width $Button.Width `
-            -Selected $Selected `
-            -Locked $Locked
-
-        ConsoleUI\Write-At `
-            -X $Button.X `
-            -Y $Button.Y `
-            -Text $Text `
-            -Color $Color
+            -PressedTarget $PressedTarget
     }
 }
 
@@ -435,11 +429,13 @@ function Draw-TagSkillHelp {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
+        [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
-        [string[]]$RacialSkills,
+        [System.Collections.Generic.HashSet[string]]$RacialSkillSet,
+
+        [Parameter(Mandatory = $true)]
+        [int]$SelectedCount,
 
         [Parameter(Mandatory = $true)]
         [hashtable]$GameRules,
@@ -450,41 +446,55 @@ function Draw-TagSkillHelp {
 
     ConsoleUI\Clear-TextLine -Y 25
 
-    $HoveredSkill = Get-TagSkillFromTarget -Target $HoverTarget
+    $HoveredSkill =
+        Get-TagSkillFromTarget -Target $HoverTarget
 
     if ([string]::IsNullOrWhiteSpace($HoveredSkill)) {
-        $HelpText = '[R] Racial 010 / 100   [X] Tagged 005 / 100   [ ] Available 000 / 100'
+        $HelpText =
+            '[R] Racial 010 / 100   ' +
+            '[X] Tagged 005 / 100   ' +
+            '[ ] Available 000 / 100'
+
         $Color = [ConsoleColor]::DarkGray
     }
-    elseif ($RacialSkills -contains $HoveredSkill) {
+    elseif ($RacialSkillSet.Contains($HoveredSkill)) {
         $HelpText = (
-            '{0}: racial proficiency, locked at {1:000} / 100.' -f
+            '{0}: racial proficiency, locked at ' +
+            '{1:000} / 100.'
+        ) -f
             $HoveredSkill,
             [int]$GameRules.RacialProficiencyStart
-        )
+
         $Color = [ConsoleColor]::DarkYellow
     }
-    elseif ($SelectedSkills -contains $HoveredSkill) {
+    elseif ($SelectedSkillSet.Contains($HoveredSkill)) {
         $HelpText = (
-            '{0}: tagged at {1:000} / 100. Click again to remove the tag.' -f
+            '{0}: tagged at {1:000} / 100. ' +
+            'Click again to remove the tag.'
+        ) -f
             $HoveredSkill,
             [int]$GameRules.MinorTagSkillStart
-        )
+
         $Color = [ConsoleColor]::Yellow
     }
     elseif (
-        $SelectedSkills.Count -ge
+        $SelectedCount -ge
         [int]$GameRules.MinorTagSkillCount
     ) {
-        $HelpText = 'All three tags are assigned. Remove an [X] before choosing another skill.'
+        $HelpText =
+            'All three tags are assigned. ' +
+            'Remove an [X] before choosing another skill.'
+
         $Color = [ConsoleColor]::DarkGray
     }
     else {
         $HelpText = (
-            '{0}: click to tag this skill at {1:000} / 100.' -f
+            '{0}: click to tag this skill at ' +
+            '{1:000} / 100.'
+        ) -f
             $HoveredSkill,
             [int]$GameRules.MinorTagSkillStart
-        )
+
         $Color = [ConsoleColor]::Gray
     }
 
@@ -498,15 +508,14 @@ function Test-TagSkillsReady {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
+        [int]$SelectedCount,
 
         [Parameter(Mandatory = $true)]
         [hashtable]$GameRules
     )
 
     return (
-        $SelectedSkills.Count -eq
+        $SelectedCount -eq
         [int]$GameRules.MinorTagSkillCount
     )
 }
@@ -529,47 +538,14 @@ function Draw-TagActionButtons {
         [bool]$CanContinue
     )
 
-    if ($PressedTarget -eq 'BACK') {
-        $BackStyle = 'Pressed'
-    }
-    elseif ($HoverTarget -eq 'BACK') {
-        $BackStyle = 'HoverBright'
-    }
-    else {
-        $BackStyle = 'Normal'
-    }
-
-    if (-not $CanContinue) {
-        $ContinueStyle = 'Disabled'
-    }
-    elseif ($PressedTarget -eq 'CONTINUE') {
-        $ContinueStyle = 'Pressed'
-    }
-    elseif ($HoverTarget -eq 'CONTINUE') {
-        $ContinueStyle = 'HoverBright'
-    }
-    else {
-        $ContinueStyle = 'Normal'
-    }
-
-    ConsoleUI\Draw-Button -Button $BackButton -Style $BackStyle
-    ConsoleUI\Draw-Button -Button $ContinueButton -Style $ContinueStyle
+    ConsoleUI\Draw-ActionButtons `
+        -BackButton $BackButton `
+        -ContinueButton $ContinueButton `
+        -HoverName $HoverTarget `
+        -PressedName $PressedTarget `
+        -ContinueEnabled $CanContinue
 }
 
-function Draw-TagSkillStatus {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
-
-        [Parameter(Mandatory = $true)]
-        [hashtable]$GameRules
-    )
-
-    # Bottom status intentionally unused; progress is shown in the header.
-    return
-}
 function Draw-TagSkillsScreen {
     [CmdletBinding()]
     param(
@@ -589,11 +565,13 @@ function Draw-TagSkillsScreen {
         [object]$CharacterDraft,
 
         [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
+        [System.Collections.Generic.List[string]]$SelectedSkills,
 
         [Parameter(Mandatory = $true)]
-        [string[]]$RacialSkills,
+        [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.HashSet[string]]$RacialSkillSet,
 
         [Parameter(Mandatory = $true)]
         [hashtable]$GameRules,
@@ -611,48 +589,56 @@ function Draw-TagSkillsScreen {
         if ($ClearScreen) {
             ConsoleUI\Clear-ConsoleScreen
         }
-    
+
         ConsoleUI\Draw-Frame
-        ConsoleUI\Write-Centered -Y 1 -Text 'TAG YOUR MINOR SKILLS' -Color DarkYellow
-    
-        $SummaryText = '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
-            $CharacterDraft.Name,
-            $CharacterDraft.Race,
-            $SelectedSkills.Count,
-            $GameRules.MinorTagSkillCount
-    
-        ConsoleUI\Write-Centered -Y 2 -Text $SummaryText -Color Gray
-    
-        Draw-TagSkillHeaders -SkillSections $SkillSections
-    
+
+        ConsoleUI\Write-Centered `
+            -Y 1 `
+            -Text 'TAG YOUR MINOR SKILLS' `
+            -Color DarkYellow
+
+        $SummaryText =
+            '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
+                $CharacterDraft.Name,
+                $CharacterDraft.Race,
+                $SelectedSkills.Count,
+                $GameRules.MinorTagSkillCount
+
+        ConsoleUI\Write-Centered `
+            -Y 2 `
+            -Text $SummaryText `
+            -Color Gray
+
+        Draw-TagSkillHeaders `
+            -SkillSections $SkillSections
+
         Draw-TagSkillButtons `
             -SkillButtons $SkillButtons `
-            -SelectedSkills $SelectedSkills `
-            -RacialSkills $RacialSkills `
+            -SelectedSkillSet $SelectedSkillSet `
+            -RacialSkillSet $RacialSkillSet `
+            -SelectedCount $SelectedSkills.Count `
             -GameRules $GameRules `
             -HoverTarget $HoverTarget `
             -PressedTarget $PressedTarget
-    
+
         Draw-TagSkillHelp `
-            -SelectedSkills $SelectedSkills `
-            -RacialSkills $RacialSkills `
+            -SelectedSkillSet $SelectedSkillSet `
+            -RacialSkillSet $RacialSkillSet `
+            -SelectedCount $SelectedSkills.Count `
             -GameRules $GameRules `
             -HoverTarget $HoverTarget
-    
+
         $CanContinue = Test-TagSkillsReady `
-            -SelectedSkills $SelectedSkills `
+            -SelectedCount $SelectedSkills.Count `
             -GameRules $GameRules
-    
+
         Draw-TagActionButtons `
             -BackButton $BackButton `
             -ContinueButton $ContinueButton `
             -HoverTarget $HoverTarget `
             -PressedTarget $PressedTarget `
             -CanContinue $CanContinue
-    
-        Draw-TagSkillStatus `
-            -SelectedSkills $SelectedSkills `
-            -GameRules $GameRules
+
     }
 }
 
@@ -661,6 +647,9 @@ function Update-TagSkillsRendering {
     param(
         [Parameter(Mandatory = $true)]
         [object[]]$SkillButtons,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$SkillButtonMap,
 
         [Parameter(Mandatory = $true)]
         [object]$BackButton,
@@ -672,11 +661,13 @@ function Update-TagSkillsRendering {
         [object]$CharacterDraft,
 
         [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
+        [System.Collections.Generic.List[string]]$SelectedSkills,
 
         [Parameter(Mandatory = $true)]
-        [string[]]$RacialSkills,
+        [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.HashSet[string]]$RacialSkillSet,
 
         [Parameter(Mandatory = $true)]
         [hashtable]$GameRules,
@@ -685,47 +676,94 @@ function Update-TagSkillsRendering {
         [string]$HoverTarget,
 
         [AllowNull()]
-        [string]$PressedTarget
+        [string]$PressedTarget,
+
+        [AllowNull()]
+        [string]$PreviousHoverTarget,
+
+        [AllowNull()]
+        [string]$PreviousPressedTarget,
+
+        [switch]$StateChanged
     )
 
     ConsoleUI\Invoke-ConsoleRedraw {
-        $SummaryText = '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
-            $CharacterDraft.Name,
-            $CharacterDraft.Race,
-            $SelectedSkills.Count,
-            $GameRules.MinorTagSkillCount
-    
-        ConsoleUI\Clear-TextLine -Y 2
-        ConsoleUI\Write-Centered -Y 2 -Text $SummaryText -Color Gray
-    
-        Draw-TagSkillButtons `
-            -SkillButtons $SkillButtons `
-            -SelectedSkills $SelectedSkills `
-            -RacialSkills $RacialSkills `
-            -GameRules $GameRules `
-            -HoverTarget $HoverTarget `
-            -PressedTarget $PressedTarget
-    
+        if ($StateChanged) {
+            $SummaryText =
+                '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
+                    $CharacterDraft.Name,
+                    $CharacterDraft.Race,
+                    $SelectedSkills.Count,
+                    $GameRules.MinorTagSkillCount
+
+            ConsoleUI\Clear-TextLine -Y 2
+
+            ConsoleUI\Write-Centered `
+                -Y 2 `
+                -Text $SummaryText `
+                -Color Gray
+
+            Draw-TagSkillButtons `
+                -SkillButtons $SkillButtons `
+                -SelectedSkillSet $SelectedSkillSet `
+                -RacialSkillSet $RacialSkillSet `
+                -SelectedCount $SelectedSkills.Count `
+                -GameRules $GameRules `
+                -HoverTarget $HoverTarget `
+                -PressedTarget $PressedTarget
+        }
+        else {
+            $TargetsToDraw = @{}
+
+            foreach (
+                $Target in @(
+                    $PreviousHoverTarget
+                    $HoverTarget
+                    $PreviousPressedTarget
+                    $PressedTarget
+                )
+            ) {
+                $Skill = Get-TagSkillFromTarget `
+                    -Target $Target
+
+                if (
+                    [string]::IsNullOrWhiteSpace($Skill) -or
+                    $TargetsToDraw.ContainsKey($Skill) -or
+                    -not $SkillButtonMap.ContainsKey($Skill)
+                ) {
+                    continue
+                }
+
+                $TargetsToDraw[$Skill] = $true
+
+                Draw-TagSkillButton `
+                    -Button $SkillButtonMap[$Skill] `
+                    -SelectedSkillSet $SelectedSkillSet `
+                    -RacialSkillSet $RacialSkillSet `
+                    -SelectedCount $SelectedSkills.Count `
+                    -GameRules $GameRules `
+                    -HoverTarget $HoverTarget `
+                    -PressedTarget $PressedTarget
+            }
+        }
+
         Draw-TagSkillHelp `
-            -SelectedSkills $SelectedSkills `
-            -RacialSkills $RacialSkills `
+            -SelectedSkillSet $SelectedSkillSet `
+            -RacialSkillSet $RacialSkillSet `
+            -SelectedCount $SelectedSkills.Count `
             -GameRules $GameRules `
             -HoverTarget $HoverTarget
-    
+
         $CanContinue = Test-TagSkillsReady `
-            -SelectedSkills $SelectedSkills `
+            -SelectedCount $SelectedSkills.Count `
             -GameRules $GameRules
-    
+
         Draw-TagActionButtons `
             -BackButton $BackButton `
             -ContinueButton $ContinueButton `
             -HoverTarget $HoverTarget `
             -PressedTarget $PressedTarget `
             -CanContinue $CanContinue
-    
-        Draw-TagSkillStatus `
-            -SelectedSkills $SelectedSkills `
-            -GameRules $GameRules
     }
 }
 
@@ -736,8 +774,7 @@ function Set-CharacterDraftMinorSkills {
         [object]$CharacterDraft,
 
         [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [string[]]$SelectedSkills,
+        [System.Collections.Generic.List[string]]$SelectedSkills,
 
         [Parameter(Mandatory = $true)]
         [hashtable]$SkillData,
@@ -746,24 +783,43 @@ function Set-CharacterDraftMinorSkills {
         [hashtable]$GameRules
     )
 
-    if ($CharacterDraft.Skills -isnot [System.Collections.IDictionary]) {
+    if (
+        $CharacterDraft.Skills -isnot
+            [System.Collections.IDictionary]
+    ) {
         throw 'Character draft skill data is not writable.'
     }
 
+    $RacialSkillSet =
+        [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+
+    foreach (
+        $Skill in
+        @($CharacterDraft.RacialProficiencies)
+    ) {
+        [void]$RacialSkillSet.Add([string]$Skill)
+    }
+
     foreach ($Skill in $SkillData.SkillOrder) {
-        if ($CharacterDraft.RacialProficiencies -contains $Skill) {
-            $CharacterDraft.Skills[$Skill] = [int]$GameRules.RacialProficiencyStart
+        if ($RacialSkillSet.Contains($Skill)) {
+            $CharacterDraft.Skills[$Skill] =
+                [int]$GameRules.RacialProficiencyStart
         }
         else {
-            $CharacterDraft.Skills[$Skill] = [int]$GameRules.SkillMinimum
+            $CharacterDraft.Skills[$Skill] =
+                [int]$GameRules.SkillMinimum
         }
     }
 
     foreach ($Skill in $SelectedSkills) {
-        $CharacterDraft.Skills[$Skill] = [int]$GameRules.MinorTagSkillStart
+        $CharacterDraft.Skills[$Skill] =
+            [int]$GameRules.MinorTagSkillStart
     }
 
-    $CharacterDraft.MinorTaggedSkills = @($SelectedSkills)
+    $CharacterDraft.MinorTaggedSkills =
+        $SelectedSkills.ToArray()
 
     return $CharacterDraft
 }
@@ -843,30 +899,73 @@ function Invoke-TagSkillsScreen {
     )
 
     $SkillButtons = @(
-        Get-TagSkillButtons -SkillSections $SkillSections
+        Get-TagSkillButtons `
+            -SkillSections $SkillSections
     )
 
-    if ($SkillButtons.Count -ne $SkillData.SkillOrder.Count) {
+    if (
+        $SkillButtons.Count -ne
+        $SkillData.SkillOrder.Count
+    ) {
         throw (
             'Tag Skills could not build one control per skill. ' +
-            "Expected $($SkillData.SkillOrder.Count), found $($SkillButtons.Count)."
+            "Expected $($SkillData.SkillOrder.Count), " +
+            "found $($SkillButtons.Count)."
         )
     }
 
-    $RacialSkills = @($CharacterDraft.RacialProficiencies)
-    $SelectedSkills = @()
+    $SkillButtonMap = @{}
 
-    foreach ($ExistingSkill in @($CharacterDraft.MinorTaggedSkills)) {
-        $ValidExistingSkill =
-            $SkillData.SkillOrder -contains $ExistingSkill -and
-            $RacialSkills -notcontains $ExistingSkill -and
-            $SelectedSkills -notcontains $ExistingSkill
+    foreach ($SkillButton in $SkillButtons) {
+        $SkillButtonMap[$SkillButton.Skill] =
+            $SkillButton
+    }
+
+    $RacialSkills =
+        @($CharacterDraft.RacialProficiencies)
+
+    $RacialSkillSet =
+        [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+
+    foreach ($RacialSkill in $RacialSkills) {
+        [void]$RacialSkillSet.Add(
+            [string]$RacialSkill
+        )
+    }
+
+    $SelectedSkills =
+        [System.Collections.Generic.List[string]]::new()
+
+    $SelectedSkillSet =
+        [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+
+    foreach (
+        $ExistingSkill in
+        @($CharacterDraft.MinorTaggedSkills)
+    ) {
+        $ValidExistingSkill = (
+            $SkillData.SkillOrder -contains
+                $ExistingSkill -and
+            -not $RacialSkillSet.Contains(
+                [string]$ExistingSkill
+            ) -and
+            -not $SelectedSkillSet.Contains(
+                [string]$ExistingSkill
+            )
+        )
 
         if (
             $ValidExistingSkill -and
-            $SelectedSkills.Count -lt [int]$GameRules.MinorTagSkillCount
+            $SelectedSkills.Count -lt
+                [int]$GameRules.MinorTagSkillCount
         ) {
-            $SelectedSkills += [string]$ExistingSkill
+            $SkillName = [string]$ExistingSkill
+            [void]$SelectedSkills.Add($SkillName)
+            [void]$SelectedSkillSet.Add($SkillName)
         }
     }
 
@@ -886,6 +985,11 @@ function Invoke-TagSkillsScreen {
         Width = 22
     }
 
+    $ActionButtons = @(
+        $BackButton
+        $ContinueButton
+    )
+
     $HoverTarget = $null
     $PressedTarget = $null
     $LeftButtonDown = $false
@@ -898,19 +1002,22 @@ function Invoke-TagSkillsScreen {
         -ContinueButton $ContinueButton `
         -CharacterDraft $CharacterDraft `
         -SelectedSkills $SelectedSkills `
-        -RacialSkills $RacialSkills `
+        -SelectedSkillSet $SelectedSkillSet `
+        -RacialSkillSet $RacialSkillSet `
         -GameRules $GameRules `
         -HoverTarget $HoverTarget `
         -PressedTarget $PressedTarget `
         -ClearScreen
 
     try {
-        $InputHandle = ConsoleInput\Start-ConsoleMouseSession
+        $InputHandle =
+            ConsoleInput\Start-ConsoleMouseSession
 
         while ($true) {
-            $Sample = ConsoleInput\Read-ConsoleMouseSample `
-                -InputHandle $InputHandle `
-                -TimeoutMilliseconds 120
+            $Sample =
+                ConsoleInput\Read-ConsoleMouseSample `
+                    -InputHandle $InputHandle `
+                    -TimeoutMilliseconds 120
 
             if (-not $Sample.HasEvent) {
                 continue
@@ -918,48 +1025,68 @@ function Invoke-TagSkillsScreen {
 
             $CurrentTarget = Get-TagSkillTargetAt `
                 -SkillButtons $SkillButtons `
-                -BackButton $BackButton `
-                -ContinueButton $ContinueButton `
+                -ActionButtons $ActionButtons `
                 -X $Sample.X `
                 -Y $Sample.Y
 
             if ($CurrentTarget -ne $HoverTarget) {
+                $PreviousHoverTarget = $HoverTarget
                 $HoverTarget = $CurrentTarget
 
                 Update-TagSkillsRendering `
                     -SkillButtons $SkillButtons `
+                    -SkillButtonMap $SkillButtonMap `
                     -BackButton $BackButton `
                     -ContinueButton $ContinueButton `
                     -CharacterDraft $CharacterDraft `
                     -SelectedSkills $SelectedSkills `
-                    -RacialSkills $RacialSkills `
+                    -SelectedSkillSet $SelectedSkillSet `
+                    -RacialSkillSet $RacialSkillSet `
                     -GameRules $GameRules `
                     -HoverTarget $HoverTarget `
-                    -PressedTarget $PressedTarget
+                    -PressedTarget $PressedTarget `
+                    -PreviousHoverTarget $PreviousHoverTarget `
+                    -PreviousPressedTarget $PressedTarget
             }
 
-            $IsLeftButtonDown = ($Sample.ButtonState -band 0x0001) -ne 0
+            $IsLeftButtonDown =
+                ($Sample.ButtonState -band 0x0001) -ne 0
 
-            if ($IsLeftButtonDown -and -not $LeftButtonDown) {
+            if (
+                $IsLeftButtonDown -and
+                -not $LeftButtonDown
+            ) {
+                $PreviousPressedTarget = $PressedTarget
                 $PressedTarget = $CurrentTarget
 
                 Update-TagSkillsRendering `
                     -SkillButtons $SkillButtons `
+                    -SkillButtonMap $SkillButtonMap `
                     -BackButton $BackButton `
                     -ContinueButton $ContinueButton `
                     -CharacterDraft $CharacterDraft `
                     -SelectedSkills $SelectedSkills `
-                    -RacialSkills $RacialSkills `
+                    -SelectedSkillSet $SelectedSkillSet `
+                    -RacialSkillSet $RacialSkillSet `
                     -GameRules $GameRules `
                     -HoverTarget $HoverTarget `
-                    -PressedTarget $PressedTarget
+                    -PressedTarget $PressedTarget `
+                    -PreviousHoverTarget $HoverTarget `
+                    -PreviousPressedTarget $PreviousPressedTarget
             }
-            elseif (-not $IsLeftButtonDown -and $LeftButtonDown) {
+            elseif (
+                -not $IsLeftButtonDown -and
+                $LeftButtonDown
+            ) {
+                $PreviousPressedTarget = $PressedTarget
                 $ReleasedTarget = $CurrentTarget
                 $ActivatedTarget = $null
+                $SelectionChanged = $false
 
                 if (
-                    -not [string]::IsNullOrWhiteSpace($PressedTarget) -and
+                    -not [string]::IsNullOrWhiteSpace(
+                        $PressedTarget
+                    ) -and
                     $ReleasedTarget -eq $PressedTarget
                 ) {
                     $ActivatedTarget = $PressedTarget
@@ -967,63 +1094,127 @@ function Invoke-TagSkillsScreen {
 
                 $PressedTarget = $null
 
-                if (-not [string]::IsNullOrWhiteSpace($ActivatedTarget)) {
-                    $ActivatedSkill = Get-TagSkillFromTarget `
-                        -Target $ActivatedTarget
+                if (
+                    -not [string]::IsNullOrWhiteSpace(
+                        $ActivatedTarget
+                    )
+                ) {
+                    $ActivatedSkill =
+                        Get-TagSkillFromTarget `
+                            -Target $ActivatedTarget
 
-                    if (-not [string]::IsNullOrWhiteSpace($ActivatedSkill)) {
-                        if ($RacialSkills -notcontains $ActivatedSkill) {
-                            if ($SelectedSkills -contains $ActivatedSkill) {
-                                $SelectedSkills = @(
-                                    $SelectedSkills |
-                                        Where-Object { $_ -ne $ActivatedSkill }
-                                )
-                            }
-                            elseif (
-                                $SelectedSkills.Count -lt
-                                [int]$GameRules.MinorTagSkillCount
+                    if (
+                        -not [string]::IsNullOrWhiteSpace(
+                            $ActivatedSkill
+                        ) -and
+                        -not $RacialSkillSet.Contains(
+                            $ActivatedSkill
+                        )
+                    ) {
+                        if (
+                            $SelectedSkillSet.Contains(
+                                $ActivatedSkill
+                            )
+                        ) {
+                            [void]$SelectedSkillSet.Remove(
+                                $ActivatedSkill
+                            )
+
+                            $SelectionChanged = $true
+
+                            for (
+                                $Index = 0;
+                                $Index -lt $SelectedSkills.Count;
+                                $Index++
                             ) {
-                                $SelectedSkills += $ActivatedSkill
+                                if (
+                                    $SelectedSkills[$Index] -ieq
+                                    $ActivatedSkill
+                                ) {
+                                    $SelectedSkills.RemoveAt(
+                                        $Index
+                                    )
+
+                                    break
+                                }
                             }
+                        }
+                        elseif (
+                            $SelectedSkills.Count -lt
+                            [int]$GameRules.MinorTagSkillCount
+                        ) {
+                            [void]$SelectedSkills.Add(
+                                $ActivatedSkill
+                            )
+
+                            [void]$SelectedSkillSet.Add(
+                                $ActivatedSkill
+                            )
+
+                            $SelectionChanged = $true
                         }
                     }
                     elseif ($ActivatedTarget -eq 'BACK') {
-                        $CharacterDraft = Set-CharacterDraftMinorSkills `
-                            -CharacterDraft $CharacterDraft `
-                            -SelectedSkills $SelectedSkills `
-                            -SkillData $SkillData `
-                            -GameRules $GameRules
-
-                        return [pscustomobject]@{
-                            NextState = 'CHARACTER_CREATOR'
-                            CharacterDraft = $CharacterDraft
-                        }
-                    }
-                    elseif ($ActivatedTarget -eq 'CONTINUE') {
-                        $Ready = Test-TagSkillsReady `
-                            -SelectedSkills $SelectedSkills `
-                            -GameRules $GameRules
-
-                        if ($Ready) {
-                            if ($InputHandle -ne [IntPtr]::Zero) {
-                                ConsoleInput\Stop-ConsoleMouseSession `
-                                    -InputHandle $InputHandle
-
-                                $InputHandle = [IntPtr]::Zero
-                            }
-
-                            $CharacterDraft = Set-CharacterDraftMinorSkills `
-                                -CharacterDraft $CharacterDraft `
-                                -SelectedSkills $SelectedSkills `
+                        $CharacterDraft =
+                            Set-CharacterDraftMinorSkills `
+                                -CharacterDraft (
+                                    $CharacterDraft
+                                ) `
+                                -SelectedSkills (
+                                    $SelectedSkills
+                                ) `
                                 -SkillData $SkillData `
                                 -GameRules $GameRules
 
+                        return [pscustomobject]@{
+                            NextState = 'CHARACTER_CREATOR'
+                            CharacterDraft =
+                                $CharacterDraft
+                        }
+                    }
+                    elseif (
+                        $ActivatedTarget -eq 'CONTINUE'
+                    ) {
+                        $Ready = Test-TagSkillsReady `
+                            -SelectedCount (
+                                $SelectedSkills.Count
+                            ) `
+                            -GameRules $GameRules
+
+                        if ($Ready) {
+                            if (
+                                $InputHandle -ne
+                                [IntPtr]::Zero
+                            ) {
+                                ConsoleInput\Stop-ConsoleMouseSession `
+                                    -InputHandle (
+                                        $InputHandle
+                                    )
+
+                                $InputHandle =
+                                    [IntPtr]::Zero
+                            }
+
+                            $CharacterDraft =
+                                Set-CharacterDraftMinorSkills `
+                                    -CharacterDraft (
+                                        $CharacterDraft
+                                    ) `
+                                    -SelectedSkills (
+                                        $SelectedSkills
+                                    ) `
+                                    -SkillData $SkillData `
+                                    -GameRules $GameRules
+
                             Show-CharacterCreationComplete `
-                                -CharacterDraft $CharacterDraft
+                                -CharacterDraft (
+                                    $CharacterDraft
+                                )
 
                             return [pscustomobject]@{
                                 NextState = 'MAIN_MENU'
-                                CharacterDraft = $CharacterDraft
+                                CharacterDraft =
+                                    $CharacterDraft
                             }
                         }
                     }
@@ -1031,14 +1222,19 @@ function Invoke-TagSkillsScreen {
 
                 Update-TagSkillsRendering `
                     -SkillButtons $SkillButtons `
+                    -SkillButtonMap $SkillButtonMap `
                     -BackButton $BackButton `
                     -ContinueButton $ContinueButton `
                     -CharacterDraft $CharacterDraft `
                     -SelectedSkills $SelectedSkills `
-                    -RacialSkills $RacialSkills `
+                    -SelectedSkillSet $SelectedSkillSet `
+                    -RacialSkillSet $RacialSkillSet `
                     -GameRules $GameRules `
                     -HoverTarget $HoverTarget `
-                    -PressedTarget $PressedTarget
+                    -PressedTarget $PressedTarget `
+                    -PreviousHoverTarget $HoverTarget `
+                    -PreviousPressedTarget $PreviousPressedTarget `
+                    -StateChanged:$SelectionChanged
             }
 
             $LeftButtonDown = $IsLeftButtonDown

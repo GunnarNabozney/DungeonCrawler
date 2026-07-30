@@ -8,22 +8,31 @@ function Get-CharacterCreatorRaceButtons {
     )
 
     $Rows = @(3, 7, 11, 15, 19, 23)
-    $Buttons = @()
+    $Buttons =
+        [System.Collections.Generic.List[object]]::new()
 
-    for ($Index = 0; $Index -lt $RaceData.RaceOrder.Count; $Index++) {
+    for (
+        $Index = 0;
+        $Index -lt $RaceData.RaceOrder.Count;
+        $Index++
+    ) {
         $RaceId = $RaceData.RaceOrder[$Index]
         $Race = $RaceData.Races[$RaceId]
 
-        $Buttons += [pscustomobject]@{
-            Name = $RaceId
-            Label = $Race.DisplayName.ToUpperInvariant()
-            X = 4
-            Y = $Rows[$Index]
-            Width = 20
-        }
+        [void]$Buttons.Add(
+            [pscustomobject]@{
+                Name = $RaceId
+                Label =
+                    $Race.DisplayName.ToUpperInvariant()
+
+                X = 4
+                Y = $Rows[$Index]
+                Width = 20
+            }
+        )
     }
 
-    return $Buttons
+    return $Buttons.ToArray()
 }
 
 function Clear-CharacterCreatorPanel {
@@ -84,35 +93,6 @@ function Write-CreatorWrappedText {
     return $CurrentY
 }
 
-function Test-CreatorPointInRect {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [int]$PointX,
-
-        [Parameter(Mandatory = $true)]
-        [int]$PointY,
-
-        [Parameter(Mandatory = $true)]
-        [int]$X,
-
-        [Parameter(Mandatory = $true)]
-        [int]$Y,
-
-        [Parameter(Mandatory = $true)]
-        [int]$Width,
-
-        [int]$Height = 1
-    )
-
-    return (
-        $PointX -ge $X -and
-        $PointX -lt ($X + $Width) -and
-        $PointY -ge $Y -and
-        $PointY -lt ($Y + $Height)
-    )
-}
-
 function Get-CreatorTargetAt {
     [CmdletBinding()]
     param(
@@ -120,10 +100,7 @@ function Get-CreatorTargetAt {
         [object[]]$RaceButtons,
 
         [Parameter(Mandatory = $true)]
-        [object]$BackButton,
-
-        [Parameter(Mandatory = $true)]
-        [object]$ContinueButton,
+        [object[]]$ActionButtons,
 
         [Parameter(Mandatory = $true)]
         [string[]]$Attributes,
@@ -138,12 +115,20 @@ function Get-CreatorTargetAt {
         [int]$Y
     )
 
-    $RaceTarget = ConsoleUI\Get-ButtonAt -Buttons $RaceButtons -X $X -Y $Y
+    $RaceTarget = ConsoleUI\Get-ButtonAt `
+        -Buttons $RaceButtons `
+        -X $X `
+        -Y $Y
+
     if (-not [string]::IsNullOrWhiteSpace($RaceTarget)) {
         return "Race:$RaceTarget"
     }
 
-    $ActionTarget = ConsoleUI\Get-ButtonAt -Buttons @($BackButton, $ContinueButton) -X $X -Y $Y
+    $ActionTarget = ConsoleUI\Get-ButtonAt `
+        -Buttons $ActionButtons `
+        -X $X `
+        -Y $Y
+
     if (-not [string]::IsNullOrWhiteSpace($ActionTarget)) {
         return $ActionTarget
     }
@@ -152,18 +137,36 @@ function Get-CreatorTargetAt {
         return $null
     }
 
-    $NameHit = Test-CreatorPointInRect -PointX $X -PointY $Y -X 37 -Y 6 -Width 20
-    if ($NameHit) {
+    if (
+        ConsoleUI\Test-PointInRect `
+            -PointX $X `
+            -PointY $Y `
+            -X 37 `
+            -Y 6 `
+            -Width 20
+    ) {
         return 'Name'
     }
 
-    $MaleHit = Test-CreatorPointInRect -PointX $X -PointY $Y -X 38 -Y 8 -Width 8
-    if ($MaleHit) {
+    if (
+        ConsoleUI\Test-PointInRect `
+            -PointX $X `
+            -PointY $Y `
+            -X 38 `
+            -Y 8 `
+            -Width 8
+    ) {
         return 'Gender:Male'
     }
 
-    $FemaleHit = Test-CreatorPointInRect -PointX $X -PointY $Y -X 48 -Y 8 -Width 10
-    if ($FemaleHit) {
+    if (
+        ConsoleUI\Test-PointInRect `
+            -PointX $X `
+            -PointY $Y `
+            -X 48 `
+            -Y 8 `
+            -Width 10
+    ) {
         return 'Gender:Female'
     }
 
@@ -171,18 +174,36 @@ function Get-CreatorTargetAt {
         $Attribute = $Attributes[$Index]
         $Row = 12 + $Index
 
-        $MinusHit = Test-CreatorPointInRect -PointX $X -PointY $Y -X 30 -Y $Row -Width 5
-        if ($MinusHit) {
+        if (
+            ConsoleUI\Test-PointInRect `
+                -PointX $X `
+                -PointY $Y `
+                -X 30 `
+                -Y $Row `
+                -Width 5
+        ) {
             return "Minus:$Attribute"
         }
 
-        $PlusHit = Test-CreatorPointInRect -PointX $X -PointY $Y -X 59 -Y $Row -Width 5
-        if ($PlusHit) {
+        if (
+            ConsoleUI\Test-PointInRect `
+                -PointX $X `
+                -PointY $Y `
+                -X 59 `
+                -Y $Row `
+                -Width 5
+        ) {
             return "Plus:$Attribute"
         }
 
-        $AttributeHit = Test-CreatorPointInRect -PointX $X -PointY $Y -X 37 -Y $Row -Width 20
-        if ($AttributeHit) {
+        if (
+            ConsoleUI\Test-PointInRect `
+                -PointX $X `
+                -PointY $Y `
+                -X 37 `
+                -Y $Row `
+                -Width 20
+        ) {
             return "Attribute:$Attribute"
         }
     }
@@ -725,31 +746,12 @@ function Draw-CreatorActionButtons {
         [bool]$CanContinue
     )
 
-    if ($PressedTarget -eq 'BACK') {
-        $BackStyle = 'Pressed'
-    }
-    elseif ($HoverTarget -eq 'BACK') {
-        $BackStyle = 'HoverBright'
-    }
-    else {
-        $BackStyle = 'Normal'
-    }
-
-    if (-not $CanContinue) {
-        $ContinueStyle = 'Disabled'
-    }
-    elseif ($PressedTarget -eq 'CONTINUE') {
-        $ContinueStyle = 'Pressed'
-    }
-    elseif ($HoverTarget -eq 'CONTINUE') {
-        $ContinueStyle = 'HoverBright'
-    }
-    else {
-        $ContinueStyle = 'Normal'
-    }
-
-    ConsoleUI\Draw-Button -Button $BackButton -Style $BackStyle
-    ConsoleUI\Draw-Button -Button $ContinueButton -Style $ContinueStyle
+    ConsoleUI\Draw-ActionButtons `
+        -BackButton $BackButton `
+        -ContinueButton $ContinueButton `
+        -HoverName $HoverTarget `
+        -PressedName $PressedTarget `
+        -ContinueEnabled $CanContinue
 }
 
 function Draw-CreatorStatus {
@@ -1121,6 +1123,11 @@ function Invoke-CharacterCreatorScreen {
         Width = 26
     }
 
+    $ActionButtons = @(
+        $BackButton
+        $ContinueButton
+    )
+
     $SelectedRaceId = $null
     $CharacterName = ''
     $Gender = $null
@@ -1268,8 +1275,7 @@ function Invoke-CharacterCreatorScreen {
 
             $CurrentTarget = Get-CreatorTargetAt `
                 -RaceButtons $RaceButtons `
-                -BackButton $BackButton `
-                -ContinueButton $ContinueButton `
+                -ActionButtons $ActionButtons `
                 -Attributes $GameRules.Attributes `
                 -SelectedRaceId $SelectedRaceId `
                 -X $Sample.X `

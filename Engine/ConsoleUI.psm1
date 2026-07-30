@@ -494,6 +494,36 @@ function Set-TextBoxCursor {
     [Console]::CursorVisible = $true
 }
 
+function Test-PointInRect {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int]$PointX,
+
+        [Parameter(Mandatory)]
+        [int]$PointY,
+
+        [Parameter(Mandatory)]
+        [int]$X,
+
+        [Parameter(Mandatory)]
+        [int]$Y,
+
+        [Parameter(Mandatory)]
+        [int]$Width,
+
+        [ValidateRange(1, 100)]
+        [int]$Height = 1
+    )
+
+    return (
+        $PointX -ge $X -and
+        $PointX -lt ($X + $Width) -and
+        $PointY -ge $Y -and
+        $PointY -lt ($Y + $Height)
+    )
+}
+
 function Draw-Frame {
     [CmdletBinding()]
     param()
@@ -644,6 +674,56 @@ function Clear-Button {
     }
 }
 
+function Draw-ActionButtons {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$BackButton,
+
+        [Parameter(Mandatory)]
+        [object]$ContinueButton,
+
+        [AllowNull()]
+        [string]$HoverName,
+
+        [AllowNull()]
+        [string]$PressedName,
+
+        [bool]$ContinueEnabled
+    )
+
+    if ($PressedName -eq $BackButton.Name) {
+        $BackStyle = 'Pressed'
+    }
+    elseif ($HoverName -eq $BackButton.Name) {
+        $BackStyle = 'HoverBright'
+    }
+    else {
+        $BackStyle = 'Normal'
+    }
+
+    if (-not $ContinueEnabled) {
+        $ContinueStyle = 'Disabled'
+    }
+    elseif ($PressedName -eq $ContinueButton.Name) {
+        $ContinueStyle = 'Pressed'
+    }
+    elseif ($HoverName -eq $ContinueButton.Name) {
+        $ContinueStyle = 'HoverBright'
+    }
+    else {
+        $ContinueStyle = 'Normal'
+    }
+
+    Draw-Button `
+        -Button $BackButton `
+        -Style $BackStyle
+
+    Draw-Button `
+        -Button $ContinueButton `
+        -Style $ContinueStyle
+}
+
 function Draw-Buttons {
     [CmdletBinding()]
     param(
@@ -756,12 +836,14 @@ Export-ModuleMember -Function @(
     'Clear-TextLine'
     'Draw-TextBox'
     'Set-TextBoxCursor'
+    'Test-PointInRect'
     'Clear-ConsoleScreen'
     'Invoke-ConsoleRedraw'
     'Draw-Frame'
     'Draw-Button'
     'Clear-Button'
     'Draw-Buttons'
+    'Draw-ActionButtons'
     'Get-ButtonAt'
     'Set-Status'
 )
