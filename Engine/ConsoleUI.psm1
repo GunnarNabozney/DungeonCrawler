@@ -2,20 +2,62 @@ Set-StrictMode -Version Latest
 
 $script:ConsoleWidth = 80
 
+$script:ConsoleHeight = 30
+$script:CellCount =
+    $script:ConsoleWidth * $script:ConsoleHeight
+
 $script:RedrawDepth = 0
-$script:PendingCells = @{}
-$script:RenderedCells = @{}
 
-function Get-ConsoleCellKey {
-    param(
-        [Parameter(Mandatory)]
-        [int]$X,
+$script:PendingCharacters =
+    [char[]]::new($script:CellCount)
 
-        [Parameter(Mandatory)]
-        [int]$Y
+$script:PendingColors =
+    [int[]]::new($script:CellCount)
+
+$script:PendingSet =
+    [bool[]]::new($script:CellCount)
+
+$script:RenderedCharacters =
+    [char[]]::new($script:CellCount)
+
+$script:RenderedColors =
+    [int[]]::new($script:CellCount)
+
+$script:RenderedKnown =
+    [bool[]]::new($script:CellCount)
+
+$script:DirtyStart =
+    [int[]]::new($script:ConsoleHeight)
+
+$script:DirtyEnd =
+    [int[]]::new($script:ConsoleHeight)
+
+for ($Y = 0; $Y -lt $script:ConsoleHeight; $Y++) {
+    $script:DirtyStart[$Y] = $script:ConsoleWidth
+    $script:DirtyEnd[$Y] = -1
+}
+
+function Reset-PendingConsoleRedraw {
+    [Array]::Clear(
+        $script:PendingSet,
+        0,
+        $script:PendingSet.Length
     )
 
-    return "$Y`:$X"
+    for ($Y = 0; $Y -lt $script:ConsoleHeight; $Y++) {
+        $script:DirtyStart[$Y] =
+            $script:ConsoleWidth
+
+        $script:DirtyEnd[$Y] = -1
+    }
+}
+
+function Reset-ConsoleRenderCache {
+    [Array]::Clear(
+        $script:RenderedKnown,
+        0,
+        $script:RenderedKnown.Length
+    )
 }
 
 function Set-ConsoleRenderCacheText {
@@ -36,35 +78,18 @@ function Set-ConsoleRenderCacheText {
 
     for ($Index = 0; $Index -lt $Text.Length; $Index++) {
         $CellX = $X + $Index
-        $Key = Get-ConsoleCellKey -X $CellX -Y $Y
+        $CellIndex =
+            ($Y * $script:ConsoleWidth) + $CellX
 
-        $script:RenderedCells[$Key] = [pscustomobject]@{
-            Character = [string]$Text[$Index]
-            Color = [int]$Color
-        }
+        $script:RenderedCharacters[$CellIndex] =
+            $Text[$Index]
+
+        $script:RenderedColors[$CellIndex] =
+            [int]$Color
+
+        $script:RenderedKnown[$CellIndex] =
+            $true
     }
-}
-
-function Test-ConsoleCellChanged {
-    param(
-        [Parameter(Mandatory)]
-        [object]$Cell
-    )
-
-    $Key = Get-ConsoleCellKey -X $Cell.X -Y $Cell.Y
-
-    if (-not $script:RenderedCells.ContainsKey($Key)) {
-        return $true
-    }
-
-    $RenderedCell = $script:RenderedCells[$Key]
-
-    return (
-        [string]$RenderedCell.Character -cne
-            [string]$Cell.Character -or
-        [int]$RenderedCell.Color -ne
-            [int]$Cell.Color
-    )
 }
 
 function Write-ConsoleRun {
@@ -89,72 +114,116 @@ function Write-ConsoleRun {
 
     [Console]::SetCursorPosition($X, $Y)
     [Console]::ForegroundColor = $Color
-    [Console]::BackgroundColor = [ConsoleColor]::Black
+    [Console]::BackgroundColor =
+        [ConsoleColor]::Black
+
     [Console]::Write($Text)
 }
 
 function Flush-ConsoleRedraw {
-    $ChangedCells = @(
-        @(
-            foreach ($Cell in $script:PendingCells.Values) {
-                if (Test-ConsoleCellChanged -Cell $Cell) {
-                    $Cell
+    for ($Y = 0; $Y -lt $script:ConsoleHeight; $Y++) {
+        $StartX = $script:DirtyStart[$Y]
+        $EndX = $script:DirtyEnd[$Y]
+
+        if ($EndX -lt $StartX) {
+            continue
+        }
+
+        $RunX = -1
+        $RunColor = [ConsoleColor]::Gray
+        $RunText = ''
+
+        for ($X = $StartX; $X -le $EndX; $X++) {
+            $CellIndex =
+                ($Y * $script:ConsoleWidth) + $X
+
+            if (-not $script:PendingSet[$CellIndex]) {
+                if ($RunText.Length -gt 0) {
+                    Write-ConsoleRun `
+                        -X $RunX `
+                        -Y $Y `
+                        -Text $RunText `
+                        -Color $RunColor
+
+                    $RunText = ''
                 }
-            }
-        ) |
-            Sort-Object -Property Y, X
-    )
 
-    $RunX = -1
-    $RunY = -1
-    $RunColor = [ConsoleColor]::Gray
-    $RunText = ''
-
-    foreach ($Cell in $ChangedCells) {
-        $CanAppend = (
-            $RunText.Length -gt 0 -and
-            $Cell.Y -eq $RunY -and
-            $Cell.X -eq ($RunX + $RunText.Length) -and
-            [int]$Cell.Color -eq [int]$RunColor
-        )
-
-        if (-not $CanAppend) {
-            if ($RunText.Length -gt 0) {
-                Write-ConsoleRun `
-                    -X $RunX `
-                    -Y $RunY `
-                    -Text $RunText `
-                    -Color $RunColor
+                continue
             }
 
-            $RunX = [int]$Cell.X
-            $RunY = [int]$Cell.Y
-            $RunColor = [ConsoleColor]$Cell.Color
-            $RunText = [string]$Cell.Character
+            $Character =
+                $script:PendingCharacters[$CellIndex]
+
+            $Color =
+                [ConsoleColor]$script:PendingColors[
+                    $CellIndex
+                ]
+
+            $Changed = (
+                -not $script:RenderedKnown[$CellIndex] -or
+                $script:RenderedCharacters[$CellIndex] -cne
+                    $Character -or
+                $script:RenderedColors[$CellIndex] -ne
+                    [int]$Color
+            )
+
+            $script:RenderedCharacters[$CellIndex] =
+                $Character
+
+            $script:RenderedColors[$CellIndex] =
+                [int]$Color
+
+            $script:RenderedKnown[$CellIndex] =
+                $true
+
+            if (-not $Changed) {
+                if ($RunText.Length -gt 0) {
+                    Write-ConsoleRun `
+                        -X $RunX `
+                        -Y $Y `
+                        -Text $RunText `
+                        -Color $RunColor
+
+                    $RunText = ''
+                }
+
+                continue
+            }
+
+            $CanAppend = (
+                $RunText.Length -gt 0 -and
+                $X -eq ($RunX + $RunText.Length) -and
+                [int]$Color -eq [int]$RunColor
+            )
+
+            if (-not $CanAppend) {
+                if ($RunText.Length -gt 0) {
+                    Write-ConsoleRun `
+                        -X $RunX `
+                        -Y $Y `
+                        -Text $RunText `
+                        -Color $RunColor
+                }
+
+                $RunX = $X
+                $RunColor = $Color
+                $RunText = [string]$Character
+            }
+            else {
+                $RunText += [string]$Character
+            }
         }
-        else {
-            $RunText += [string]$Cell.Character
+
+        if ($RunText.Length -gt 0) {
+            Write-ConsoleRun `
+                -X $RunX `
+                -Y $Y `
+                -Text $RunText `
+                -Color $RunColor
         }
     }
 
-    if ($RunText.Length -gt 0) {
-        Write-ConsoleRun `
-            -X $RunX `
-            -Y $RunY `
-            -Text $RunText `
-            -Color $RunColor
-    }
-
-    foreach ($Cell in $script:PendingCells.Values) {
-        $Key = Get-ConsoleCellKey -X $Cell.X -Y $Cell.Y
-
-        $script:RenderedCells[$Key] = [pscustomobject]@{
-            Character = [string]$Cell.Character
-            Color = [int]$Cell.Color
-        }
-    }
-
-    $script:PendingCells = @{}
+    Reset-PendingConsoleRedraw
 }
 
 function Invoke-ConsoleRedraw {
@@ -167,7 +236,7 @@ function Invoke-ConsoleRedraw {
     $IsRootRedraw = $script:RedrawDepth -eq 0
 
     if ($IsRootRedraw) {
-        $script:PendingCells = @{}
+        Reset-PendingConsoleRedraw
     }
 
     $script:RedrawDepth++
@@ -179,7 +248,7 @@ function Invoke-ConsoleRedraw {
         $script:RedrawDepth--
 
         if ($IsRootRedraw) {
-            $script:PendingCells = @{}
+            Reset-PendingConsoleRedraw
         }
 
         throw
@@ -197,8 +266,8 @@ function Clear-ConsoleScreen {
     param()
 
     [Console]::Clear()
-    $script:PendingCells = @{}
-    $script:RenderedCells = @{}
+    Reset-PendingConsoleRedraw
+    Reset-ConsoleRenderCache
 }
 
 function Write-At {
@@ -218,15 +287,26 @@ function Write-At {
             [System.ConsoleColor]::Gray
     )
 
-    if ($Y -lt 0 -or $Y -ge [Console]::BufferHeight) {
+    if (
+        $Y -lt 0 -or
+        $Y -ge [Console]::BufferHeight -or
+        $Y -ge $script:ConsoleHeight
+    ) {
         return
     }
 
-    if ($X -lt 0 -or $X -ge [Console]::BufferWidth) {
+    if (
+        $X -lt 0 -or
+        $X -ge [Console]::BufferWidth -or
+        $X -ge $script:ConsoleWidth
+    ) {
         return
     }
 
-    $AvailableWidth = [Console]::BufferWidth - $X
+    $AvailableWidth = [Math]::Min(
+        [Console]::BufferWidth,
+        $script:ConsoleWidth
+    ) - $X
 
     if ($Text.Length -gt $AvailableWidth) {
         $Text = $Text.Substring(0, $AvailableWidth)
@@ -235,13 +315,24 @@ function Write-At {
     if ($script:RedrawDepth -gt 0) {
         for ($Index = 0; $Index -lt $Text.Length; $Index++) {
             $CellX = $X + $Index
-            $Key = Get-ConsoleCellKey -X $CellX -Y $Y
+            $CellIndex =
+                ($Y * $script:ConsoleWidth) + $CellX
 
-            $script:PendingCells[$Key] = [pscustomobject]@{
-                X = $CellX
-                Y = $Y
-                Character = [string]$Text[$Index]
-                Color = [int]$Color
+            $script:PendingCharacters[$CellIndex] =
+                $Text[$Index]
+
+            $script:PendingColors[$CellIndex] =
+                [int]$Color
+
+            $script:PendingSet[$CellIndex] =
+                $true
+
+            if ($CellX -lt $script:DirtyStart[$Y]) {
+                $script:DirtyStart[$Y] = $CellX
+            }
+
+            if ($CellX -gt $script:DirtyEnd[$Y]) {
+                $script:DirtyEnd[$Y] = $CellX
             }
         }
 
@@ -250,7 +341,9 @@ function Write-At {
 
     [Console]::SetCursorPosition($X, $Y)
     [Console]::ForegroundColor = $Color
-    [Console]::BackgroundColor = [ConsoleColor]::Black
+    [Console]::BackgroundColor =
+        [ConsoleColor]::Black
+
     [Console]::Write($Text)
 
     Set-ConsoleRenderCacheText `
@@ -300,6 +393,105 @@ function Clear-TextLine {
         -Y $Y `
         -Text (' ' * 76) `
         -Color DarkGray
+}
+
+function Draw-TextBox {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int]$X,
+
+        [Parameter(Mandatory)]
+        [int]$Y,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(1, 60)]
+        [int]$Width,
+
+        [AllowEmptyString()]
+        [string]$Value = '',
+
+        [System.ConsoleColor]$Color =
+            [System.ConsoleColor]::Gray,
+
+        [bool]$Focused = $false
+    )
+
+    $DrawColor = if ($Focused) {
+        [ConsoleColor]::White
+    }
+    else {
+        $Color
+    }
+
+    $DisplayValue = $Value
+
+    if ($DisplayValue.Length -gt $Width) {
+        $DisplayValue =
+            $DisplayValue.Substring(0, $Width)
+    }
+
+    Invoke-ConsoleRedraw {
+        Write-At `
+            -X $X `
+            -Y $Y `
+            -Text '[' `
+            -Color $DrawColor
+
+        Write-At `
+            -X ($X + 1) `
+            -Y $Y `
+            -Text $DisplayValue.PadRight($Width) `
+            -Color $DrawColor
+
+        Write-At `
+            -X ($X + $Width + 1) `
+            -Y $Y `
+            -Text ']' `
+            -Color $DrawColor
+    }
+}
+
+function Set-TextBoxCursor {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int]$X,
+
+        [Parameter(Mandatory)]
+        [int]$Y,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(1, 60)]
+        [int]$Width,
+
+        [AllowEmptyString()]
+        [string]$Value = '',
+
+        [bool]$Visible = $true
+    )
+
+    if (-not $Visible) {
+        [Console]::CursorVisible = $false
+        return
+    }
+
+    $DisplayLength = [Math]::Min(
+        $Value.Length,
+        $Width
+    )
+
+    $CursorOffset = [Math]::Min(
+        $DisplayLength,
+        $Width - 1
+    )
+
+    [Console]::SetCursorPosition(
+        $X + 1 + $CursorOffset,
+        $Y
+    )
+
+    [Console]::CursorVisible = $true
 }
 
 function Draw-Frame {
@@ -562,6 +754,8 @@ Export-ModuleMember -Function @(
     'Write-At'
     'Write-Centered'
     'Clear-TextLine'
+    'Draw-TextBox'
+    'Set-TextBoxCursor'
     'Clear-ConsoleScreen'
     'Invoke-ConsoleRedraw'
     'Draw-Frame'

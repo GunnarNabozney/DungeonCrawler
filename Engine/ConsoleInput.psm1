@@ -17,7 +17,26 @@ function Read-ConsoleMouseSample {
         [uint32]$TimeoutMilliseconds
     )
 
-    return [DungeonConsoleNative]::ReadMouseEvent($InputHandle, $TimeoutMilliseconds)
+    return [DungeonConsoleNative]::ReadMouseEvent(
+        $InputHandle,
+        $TimeoutMilliseconds
+    )
+}
+
+function Read-ConsoleInputSample {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [IntPtr]$InputHandle,
+
+        [Parameter(Mandatory = $true)]
+        [uint32]$TimeoutMilliseconds
+    )
+
+    return [DungeonConsoleNative]::ReadInputEvent(
+        $InputHandle,
+        $TimeoutMilliseconds
+    )
 }
 
 function Stop-ConsoleMouseSession {
@@ -28,6 +47,151 @@ function Stop-ConsoleMouseSession {
     )
 
     [DungeonConsoleNative]::EndMouseSession($InputHandle)
+}
+
+function New-ConsoleTextBoxState {
+    [CmdletBinding()]
+    param(
+        [AllowEmptyString()]
+        [string]$InitialValue = '',
+
+        [ValidateRange(1, 60)]
+        [int]$MaximumLength = 20,
+
+        [Parameter(Mandatory = $true)]
+        [string]$AllowedCharacterPattern
+    )
+
+    $Value = $InitialValue
+
+    if ($Value.Length -gt $MaximumLength) {
+        $Value = $Value.Substring(0, $MaximumLength)
+    }
+
+    return [pscustomobject]@{
+        Value = $Value
+        OriginalValue = $Value
+        MaximumLength = $MaximumLength
+        AllowedCharacterPattern = $AllowedCharacterPattern
+    }
+}
+
+function Complete-ConsoleTextBoxState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$State,
+
+        [switch]$Cancel
+    )
+
+    if ($Cancel) {
+        $State.Value = [string]$State.OriginalValue
+    }
+    else {
+        $State.Value = ([string]$State.Value).Trim()
+        $State.OriginalValue = [string]$State.Value
+    }
+
+    return [string]$State.Value
+}
+
+function Update-ConsoleTextBoxState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$State,
+
+        [Parameter(Mandatory = $true)]
+        [object]$InputSample
+    )
+
+    $Result = [ordered]@{
+        Value = [string]$State.Value
+        Changed = $false
+        Completed = $false
+        Cancelled = $false
+    }
+
+    if (
+        -not $InputSample.HasEvent -or
+        -not $InputSample.IsKeyEvent -or
+        -not $InputSample.KeyDown
+    ) {
+        return [pscustomobject]$Result
+    }
+
+    $VirtualKeyCode = [int]$InputSample.VirtualKeyCode
+    $RepeatCount = [Math]::Max(
+        1,
+        [int]$InputSample.RepeatCount
+    )
+
+    if ($VirtualKeyCode -eq 13) {
+        $PreviousValue = [string]$State.Value
+        $Result.Value = Complete-ConsoleTextBoxState `
+            -State $State
+
+        $Result.Changed =
+            $PreviousValue -cne [string]$Result.Value
+
+        $Result.Completed = $true
+        return [pscustomobject]$Result
+    }
+
+    if ($VirtualKeyCode -eq 27) {
+        $PreviousValue = [string]$State.Value
+        $Result.Value = Complete-ConsoleTextBoxState `
+            -State $State `
+            -Cancel
+
+        $Result.Changed =
+            $PreviousValue -cne [string]$Result.Value
+
+        $Result.Completed = $true
+        $Result.Cancelled = $true
+        return [pscustomobject]$Result
+    }
+
+    if ($VirtualKeyCode -eq 8) {
+        for ($Index = 0; $Index -lt $RepeatCount; $Index++) {
+            if ($State.Value.Length -eq 0) {
+                break
+            }
+
+            $State.Value = $State.Value.Substring(
+                0,
+                $State.Value.Length - 1
+            )
+
+            $Result.Changed = $true
+        }
+
+        $Result.Value = [string]$State.Value
+        return [pscustomobject]$Result
+    }
+
+    $Character = [string]$InputSample.KeyChar
+
+    if (
+        $Character.Length -eq 0 -or
+        [char]::IsControl($InputSample.KeyChar) -or
+        $Character -notmatch $State.AllowedCharacterPattern
+    ) {
+        return [pscustomobject]$Result
+    }
+
+    for ($Index = 0; $Index -lt $RepeatCount; $Index++) {
+        if ($State.Value.Length -ge $State.MaximumLength) {
+            break
+        }
+
+        $State.Value += $Character
+        $Result.Changed = $true
+    }
+
+    $Result.Value = [string]$State.Value
+    return [pscustomobject]$Result
 }
 
 function Wait-ForAnyKey {
@@ -86,8 +250,15 @@ function Read-ConsoleText {
 
         [Console]::Write($DisplayValue.PadRight($Width))
 
-        $CursorOffset = [Math]::Min($DisplayValue.Length, $Width - 1)
-        [Console]::SetCursorPosition($X + $CursorOffset, $Y)
+        $CursorOffset = [Math]::Min(
+            $DisplayValue.Length,
+            $Width - 1
+        )
+
+        [Console]::SetCursorPosition(
+            $X + $CursorOffset,
+            $Y
+        )
     }
 
     try {
@@ -107,14 +278,21 @@ function Read-ConsoleText {
 
             if ($Key.Key -eq [ConsoleKey]::Backspace) {
                 if ($Value.Length -gt 0) {
-                    $Value = $Value.Substring(0, $Value.Length - 1)
+                    $Value = $Value.Substring(
+                        0,
+                        $Value.Length - 1
+                    )
+
                     & $RenderValue
                 }
 
                 continue
             }
 
-            if (-not [char]::IsControl($Key.KeyChar) -and $Value.Length -lt $MaximumLength) {
+            if (
+                -not [char]::IsControl($Key.KeyChar) -and
+                $Value.Length -lt $MaximumLength
+            ) {
                 $Character = [string]$Key.KeyChar
 
                 if ($Character -match "^[A-Za-z0-9 '\-]$") {
@@ -125,16 +303,25 @@ function Read-ConsoleText {
         }
     }
     finally {
-        [Console]::CursorVisible = $OriginalCursorVisibility
-        [Console]::ForegroundColor = $OriginalForeground
-        [Console]::BackgroundColor = $OriginalBackground
+        [Console]::CursorVisible =
+            $OriginalCursorVisibility
+
+        [Console]::ForegroundColor =
+            $OriginalForeground
+
+        [Console]::BackgroundColor =
+            $OriginalBackground
     }
 }
 
 Export-ModuleMember -Function @(
     'Start-ConsoleMouseSession'
     'Read-ConsoleMouseSample'
+    'Read-ConsoleInputSample'
     'Stop-ConsoleMouseSession'
+    'New-ConsoleTextBoxState'
+    'Complete-ConsoleTextBoxState'
+    'Update-ConsoleTextBoxState'
     'Wait-ForAnyKey'
     'Read-ConsoleText'
 )

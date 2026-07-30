@@ -422,7 +422,7 @@ function Get-CharacterCreatorStatus {
     )
 
     if ($HoverTarget -eq 'Name') {
-        return 'Click the name field. Press Enter when finished to restore mouse clicks.'
+        return 'Click the name field to type. Mouse controls stay active.'
     }
 
     if ([string]::IsNullOrWhiteSpace($SelectedRaceId)) {
@@ -454,10 +454,15 @@ function Draw-CreatorNameControl {
         [string]$HoverTarget,
 
         [AllowNull()]
-        [string]$PressedTarget
+        [string]$PressedTarget,
+
+        [bool]$IsFocused = $false
     )
 
-    $NameSelected = -not [string]::IsNullOrWhiteSpace($CharacterName)
+    $NameSelected =
+        -not [string]::IsNullOrWhiteSpace(
+            $CharacterName
+        )
 
     $NameColor = Get-CreatorControlColor `
         -Target 'Name' `
@@ -465,9 +470,13 @@ function Draw-CreatorNameControl {
         -PressedTarget $PressedTarget `
         -Selected $NameSelected
 
-    ConsoleUI\Write-At -X 36 -Y 6 -Text '[' -Color $NameColor
-    ConsoleUI\Write-At -X 37 -Y 6 -Text $CharacterName.PadRight(20).Substring(0, 20) -Color $NameColor
-    ConsoleUI\Write-At -X 57 -Y 6 -Text ']' -Color $NameColor
+    ConsoleUI\Draw-TextBox `
+        -X 36 `
+        -Y 6 `
+        -Width 20 `
+        -Value $CharacterName `
+        -Color $NameColor `
+        -Focused $IsFocused
 }
 
 function Draw-CreatorGenderControls {
@@ -656,7 +665,9 @@ function Draw-CreatorCharacterSheet {
         [string]$HoverTarget,
 
         [AllowNull()]
-        [string]$PressedTarget
+        [string]$PressedTarget,
+
+        [bool]$NameFocused = $false
     )
 
     Clear-CharacterCreatorPanel
@@ -672,7 +683,8 @@ function Draw-CreatorCharacterSheet {
     Draw-CreatorNameControl `
         -CharacterName $CharacterName `
         -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget
+        -PressedTarget $PressedTarget `
+        -IsFocused $NameFocused
 
     Draw-CreatorGenderControls `
         -Gender $Gender `
@@ -821,6 +833,8 @@ function Update-CreatorInteractiveRendering {
         [AllowNull()]
         [string]$PressedTarget,
 
+        [bool]$NameFocused = $false,
+
         [AllowNull()]
         [string]$PreviousHoverTarget,
 
@@ -848,7 +862,8 @@ function Update-CreatorInteractiveRendering {
             Draw-CreatorNameControl `
                 -CharacterName $CharacterName `
                 -HoverTarget $HoverTarget `
-                -PressedTarget $PressedTarget
+                -PressedTarget $PressedTarget `
+                -IsFocused $NameFocused
     
             Draw-CreatorGenderControls `
                 -Gender $Gender `
@@ -940,6 +955,8 @@ function Draw-CharacterCreatorScreen {
         [AllowNull()]
         [string]$PressedTarget,
 
+        [bool]$NameFocused = $false,
+
         [switch]$ClearScreen
     )
 
@@ -975,7 +992,8 @@ function Draw-CharacterCreatorScreen {
                 -Gender $Gender `
                 -PointsRemaining $PointsRemaining `
                 -HoverTarget $HoverTarget `
-                -PressedTarget $PressedTarget
+                -PressedTarget $PressedTarget `
+                -NameFocused $NameFocused
         }
     
         $CanContinue = Test-CharacterCreatorReady `
@@ -1082,7 +1100,10 @@ function Invoke-CharacterCreatorScreen {
 
     [Console]::CursorVisible = $false
 
-    $RaceButtons = @(Get-CharacterCreatorRaceButtons -RaceData $RaceData)
+    $RaceButtons = @(
+        Get-CharacterCreatorRaceButtons `
+            -RaceData $RaceData
+    )
 
     $BackButton = [pscustomobject]@{
         Name = 'BACK'
@@ -1113,9 +1134,14 @@ function Invoke-CharacterCreatorScreen {
             $null -ne $ExistingDraft -and
             $null -ne $ExistingDraft.AddedAttributes -and
             $ExistingDraft.AddedAttributes -is [System.Collections.IDictionary] -and
-            $ExistingDraft.AddedAttributes.Contains($Attribute)
+            $ExistingDraft.AddedAttributes.Contains(
+                $Attribute
+            )
         ) {
-            $AddedValue = [int]$ExistingDraft.AddedAttributes[$Attribute]
+            $AddedValue =
+                [int]$ExistingDraft.AddedAttributes[
+                    $Attribute
+                ]
         }
 
         $AddedAttributes[$Attribute] = $AddedValue
@@ -1123,9 +1149,14 @@ function Invoke-CharacterCreatorScreen {
     }
 
     if ($null -ne $ExistingDraft) {
-        $SelectedRaceId = [string]$ExistingDraft.RaceId
-        $CharacterName = [string]$ExistingDraft.Name
-        $Gender = [string]$ExistingDraft.Gender
+        $SelectedRaceId =
+            [string]$ExistingDraft.RaceId
+
+        $CharacterName =
+            [string]$ExistingDraft.Name
+
+        $Gender =
+            [string]$ExistingDraft.Gender
     }
 
     $PointsRemaining = [Math]::Max(
@@ -1133,6 +1164,19 @@ function Invoke-CharacterCreatorScreen {
         [int]$GameRules.CharacterCreation.SpendableAttributePoints -
         $SpentAttributePoints
     )
+
+    $NameMaximumLength =
+        [int]$GameRules.CharacterCreation.NameMaximumLength
+
+    $NameInputState =
+        ConsoleInput\New-ConsoleTextBoxState `
+            -InitialValue $CharacterName `
+            -MaximumLength $NameMaximumLength `
+            -AllowedCharacterPattern (
+                '^[A-Za-z0-9 ''\-]$'
+            )
+
+    $NameFocused = $false
     $HoverTarget = $null
     $PressedTarget = $null
     $LeftButtonDown = $false
@@ -1151,17 +1195,74 @@ function Invoke-CharacterCreatorScreen {
         -PointsRemaining $PointsRemaining `
         -HoverTarget $HoverTarget `
         -PressedTarget $PressedTarget `
+        -NameFocused $NameFocused `
         -ClearScreen
 
     try {
-        $InputHandle = ConsoleInput\Start-ConsoleMouseSession
+        $InputHandle =
+            ConsoleInput\Start-ConsoleMouseSession
 
         while ($true) {
-            $Sample = ConsoleInput\Read-ConsoleMouseSample `
-                -InputHandle $InputHandle `
-                -TimeoutMilliseconds 120
+            $Sample =
+                ConsoleInput\Read-ConsoleInputSample `
+                    -InputHandle $InputHandle `
+                    -TimeoutMilliseconds 120
 
             if (-not $Sample.HasEvent) {
+                continue
+            }
+
+            if ($Sample.IsKeyEvent) {
+                if (-not $NameFocused) {
+                    continue
+                }
+
+                $EditResult =
+                    ConsoleInput\Update-ConsoleTextBoxState `
+                        -State $NameInputState `
+                        -InputSample $Sample
+
+                if (
+                    -not $EditResult.Changed -and
+                    -not $EditResult.Completed
+                ) {
+                    continue
+                }
+
+                $CharacterName =
+                    [string]$EditResult.Value
+
+                if ($EditResult.Completed) {
+                    $NameFocused = $false
+                }
+
+                Update-CreatorInteractiveRendering `
+                    -RaceButtons $RaceButtons `
+                    -BackButton $BackButton `
+                    -ContinueButton $ContinueButton `
+                    -RaceData $RaceData `
+                    -GameRules $GameRules `
+                    -AddedAttributes $AddedAttributes `
+                    -SelectedRaceId $SelectedRaceId `
+                    -CharacterName $CharacterName `
+                    -Gender $Gender `
+                    -PointsRemaining $PointsRemaining `
+                    -HoverTarget $HoverTarget `
+                    -PressedTarget $PressedTarget `
+                    -NameFocused $NameFocused `
+                    -PreviousHoverTarget $HoverTarget
+
+                ConsoleUI\Set-TextBoxCursor `
+                    -X 36 `
+                    -Y 6 `
+                    -Width 20 `
+                    -Value $CharacterName `
+                    -Visible $NameFocused
+
+                continue
+            }
+
+            if (-not $Sample.IsMouseEvent) {
                 continue
             }
 
@@ -1191,13 +1292,29 @@ function Invoke-CharacterCreatorScreen {
                     -PointsRemaining $PointsRemaining `
                     -HoverTarget $HoverTarget `
                     -PressedTarget $PressedTarget `
+                    -NameFocused $NameFocused `
                     -PreviousHoverTarget $PreviousHoverTarget `
                     -RefreshPreview
             }
 
-            $IsLeftButtonDown = ($Sample.ButtonState -band 0x0001) -ne 0
+            $IsLeftButtonDown =
+                ($Sample.ButtonState -band 0x0001) -ne 0
 
-            if ($IsLeftButtonDown -and -not $LeftButtonDown) {
+            if (
+                $IsLeftButtonDown -and
+                -not $LeftButtonDown
+            ) {
+                if (
+                    $NameFocused -and
+                    $CurrentTarget -ne 'Name'
+                ) {
+                    $CharacterName =
+                        ConsoleInput\Complete-ConsoleTextBoxState `
+                            -State $NameInputState
+
+                    $NameFocused = $false
+                }
+
                 $PressedTarget = $CurrentTarget
 
                 Update-CreatorInteractiveRendering `
@@ -1213,15 +1330,21 @@ function Invoke-CharacterCreatorScreen {
                     -PointsRemaining $PointsRemaining `
                     -HoverTarget $HoverTarget `
                     -PressedTarget $PressedTarget `
+                    -NameFocused $NameFocused `
                     -PreviousHoverTarget $HoverTarget
             }
-            elseif (-not $IsLeftButtonDown -and $LeftButtonDown) {
+            elseif (
+                -not $IsLeftButtonDown -and
+                $LeftButtonDown
+            ) {
                 $ReleasedTarget = $CurrentTarget
                 $ActivatedTarget = $null
                 $RaceSelectionChanged = $false
 
                 if (
-                    -not [string]::IsNullOrWhiteSpace($PressedTarget) -and
+                    -not [string]::IsNullOrWhiteSpace(
+                        $PressedTarget
+                    ) -and
                     $ReleasedTarget -eq $PressedTarget
                 ) {
                     $ActivatedTarget = $PressedTarget
@@ -1229,45 +1352,86 @@ function Invoke-CharacterCreatorScreen {
 
                 $PressedTarget = $null
 
-                if (-not [string]::IsNullOrWhiteSpace($ActivatedTarget)) {
-                    if ($ActivatedTarget.StartsWith('Race:')) {
-                        $SelectedRaceId = $ActivatedTarget.Split(':', 2)[1]
+                if (
+                    -not [string]::IsNullOrWhiteSpace(
+                        $ActivatedTarget
+                    )
+                ) {
+                    if (
+                        $ActivatedTarget.StartsWith('Race:')
+                    ) {
+                        $SelectedRaceId =
+                            $ActivatedTarget.Split(
+                                ':',
+                                2
+                            )[1]
+
                         $RaceSelectionChanged = $true
                     }
                     elseif ($ActivatedTarget -eq 'Name') {
-                        if ($InputHandle -ne [IntPtr]::Zero) {
-                            ConsoleInput\Stop-ConsoleMouseSession -InputHandle $InputHandle
-                            $InputHandle = [IntPtr]::Zero
+                        if (-not $NameFocused) {
+                            $NameInputState =
+                                ConsoleInput\New-ConsoleTextBoxState `
+                                    -InitialValue $CharacterName `
+                                    -MaximumLength $NameMaximumLength `
+                                    -AllowedCharacterPattern (
+                                        '^[A-Za-z0-9 ''\-]$'
+                                    )
                         }
 
-                        $CharacterName = ConsoleInput\Read-ConsoleText `
-                            -X 37 `
-                            -Y 6 `
-                            -Width 20 `
-                            -InitialValue $CharacterName `
-                            -MaximumLength 20
-
-                        $InputHandle = ConsoleInput\Start-ConsoleMouseSession
+                        $NameFocused = $true
                     }
-                    elseif ($ActivatedTarget -eq 'Gender:Male') {
+                    elseif (
+                        $ActivatedTarget -eq
+                            'Gender:Male'
+                    ) {
                         $Gender = 'Male'
                     }
-                    elseif ($ActivatedTarget -eq 'Gender:Female') {
+                    elseif (
+                        $ActivatedTarget -eq
+                            'Gender:Female'
+                    ) {
                         $Gender = 'Female'
                     }
-                    elseif ($ActivatedTarget.StartsWith('Plus:')) {
-                        $Attribute = $ActivatedTarget.Split(':', 2)[1]
+                    elseif (
+                        $ActivatedTarget.StartsWith('Plus:')
+                    ) {
+                        $Attribute =
+                            $ActivatedTarget.Split(
+                                ':',
+                                2
+                            )[1]
 
                         if ($PointsRemaining -gt 0) {
-                            $AddedAttributes[$Attribute] = [int]$AddedAttributes[$Attribute] + 1
+                            $AddedAttributes[$Attribute] =
+                                [int]$AddedAttributes[
+                                    $Attribute
+                                ] + 1
+
                             $PointsRemaining--
                         }
                     }
-                    elseif ($ActivatedTarget.StartsWith('Minus:')) {
-                        $Attribute = $ActivatedTarget.Split(':', 2)[1]
+                    elseif (
+                        $ActivatedTarget.StartsWith(
+                            'Minus:'
+                        )
+                    ) {
+                        $Attribute =
+                            $ActivatedTarget.Split(
+                                ':',
+                                2
+                            )[1]
 
-                        if ([int]$AddedAttributes[$Attribute] -gt 0) {
-                            $AddedAttributes[$Attribute] = [int]$AddedAttributes[$Attribute] - 1
+                        if (
+                            [int]$AddedAttributes[
+                                $Attribute
+                            ] -gt 0
+                        ) {
+                            $AddedAttributes[$Attribute] =
+                                [int]$AddedAttributes[
+                                    $Attribute
+                                ] - 1
+
                             $PointsRemaining++
                         }
                     }
@@ -1277,26 +1441,43 @@ function Invoke-CharacterCreatorScreen {
                             CharacterDraft = $null
                         }
                     }
-                    elseif ($ActivatedTarget -eq 'CONTINUE') {
-                        $Ready = Test-CharacterCreatorReady `
-                            -SelectedRaceId $SelectedRaceId `
-                            -CharacterName $CharacterName `
-                            -Gender $Gender `
-                            -PointsRemaining $PointsRemaining
+                    elseif (
+                        $ActivatedTarget -eq 'CONTINUE'
+                    ) {
+                        $Ready =
+                            Test-CharacterCreatorReady `
+                                -SelectedRaceId (
+                                    $SelectedRaceId
+                                ) `
+                                -CharacterName (
+                                    $CharacterName
+                                ) `
+                                -Gender $Gender `
+                                -PointsRemaining (
+                                    $PointsRemaining
+                                )
 
                         if ($Ready) {
-                            $CharacterDraft = New-CharacterDraft `
-                                -SelectedRaceId $SelectedRaceId `
-                                -CharacterName $CharacterName `
-                                -Gender $Gender `
-                                -AddedAttributes $AddedAttributes `
-                                -RaceData $RaceData `
-                                -SkillData $SkillData `
-                                -GameRules $GameRules
+                            $CharacterDraft =
+                                New-CharacterDraft `
+                                    -SelectedRaceId (
+                                        $SelectedRaceId
+                                    ) `
+                                    -CharacterName (
+                                        $CharacterName
+                                    ) `
+                                    -Gender $Gender `
+                                    -AddedAttributes (
+                                        $AddedAttributes
+                                    ) `
+                                    -RaceData $RaceData `
+                                    -SkillData $SkillData `
+                                    -GameRules $GameRules
 
                             return [pscustomobject]@{
                                 NextState = 'TAG_SKILLS'
-                                CharacterDraft = $CharacterDraft
+                                CharacterDraft =
+                                    $CharacterDraft
                             }
                         }
                     }
@@ -1315,7 +1496,8 @@ function Invoke-CharacterCreatorScreen {
                         -Gender $Gender `
                         -PointsRemaining $PointsRemaining `
                         -HoverTarget $HoverTarget `
-                        -PressedTarget $PressedTarget
+                        -PressedTarget $PressedTarget `
+                        -NameFocused $NameFocused
                 }
                 else {
                     Update-CreatorInteractiveRendering `
@@ -1331,16 +1513,27 @@ function Invoke-CharacterCreatorScreen {
                         -PointsRemaining $PointsRemaining `
                         -HoverTarget $HoverTarget `
                         -PressedTarget $PressedTarget `
+                        -NameFocused $NameFocused `
                         -PreviousHoverTarget $HoverTarget
                 }
             }
 
             $LeftButtonDown = $IsLeftButtonDown
+
+            ConsoleUI\Set-TextBoxCursor `
+                -X 36 `
+                -Y 6 `
+                -Width 20 `
+                -Value $CharacterName `
+                -Visible $NameFocused
         }
     }
     finally {
+        [Console]::CursorVisible = $false
+
         if ($InputHandle -ne [IntPtr]::Zero) {
-            ConsoleInput\Stop-ConsoleMouseSession -InputHandle $InputHandle
+            ConsoleInput\Stop-ConsoleMouseSession `
+                -InputHandle $InputHandle
         }
     }
 }

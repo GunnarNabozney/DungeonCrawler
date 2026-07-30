@@ -6,6 +6,7 @@ public static class DungeonConsoleNative
 {
     private const int STD_INPUT_HANDLE = -10;
 
+    private const ushort KEY_EVENT = 0x0001;
     private const ushort MOUSE_EVENT = 0x0002;
 
     private const uint ENABLE_WINDOW_INPUT = 0x0008;
@@ -27,6 +28,20 @@ public static class DungeonConsoleNative
         public short Y;
     }
 
+    [StructLayout(
+        LayoutKind.Sequential,
+        CharSet = CharSet.Unicode
+    )]
+    private struct KEY_EVENT_RECORD
+    {
+        public int KeyDown;
+        public ushort RepeatCount;
+        public ushort VirtualKeyCode;
+        public ushort VirtualScanCode;
+        public char UnicodeChar;
+        public uint ControlKeyState;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct MOUSE_EVENT_RECORD
     {
@@ -43,7 +58,28 @@ public static class DungeonConsoleNative
         public ushort EventType;
 
         [FieldOffset(4)]
+        public KEY_EVENT_RECORD KeyEvent;
+
+        [FieldOffset(4)]
         public MOUSE_EVENT_RECORD MouseEvent;
+    }
+
+    public struct InputSample
+    {
+        public bool HasEvent;
+        public bool IsKeyEvent;
+        public bool IsMouseEvent;
+
+        public bool KeyDown;
+        public char KeyChar;
+        public ushort VirtualKeyCode;
+        public ushort RepeatCount;
+
+        public short X;
+        public short Y;
+        public uint ButtonState;
+        public uint EventFlags;
+        public uint ControlKeyState;
     }
 
     public struct MouseSample
@@ -150,12 +186,12 @@ public static class DungeonConsoleNative
         return inputHandle;
     }
 
-    public static MouseSample ReadMouseEvent(
+    public static InputSample ReadInputEvent(
         IntPtr inputHandle,
         uint timeoutMilliseconds
     )
     {
-        MouseSample sample = new MouseSample();
+        InputSample sample = new InputSample();
 
         DateTime deadline =
             DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
@@ -201,24 +237,97 @@ public static class DungeonConsoleNative
                 );
             }
 
-            if (
-                eventsRead > 0 &&
-                inputBuffer[0].EventType == MOUSE_EVENT
-            )
+            if (eventsRead > 0)
+            {
+                INPUT_RECORD inputRecord = inputBuffer[0];
+
+                if (inputRecord.EventType == KEY_EVENT)
+                {
+                    sample.HasEvent = true;
+                    sample.IsKeyEvent = true;
+                    sample.KeyDown =
+                        inputRecord.KeyEvent.KeyDown != 0;
+
+                    sample.KeyChar =
+                        inputRecord.KeyEvent.UnicodeChar;
+
+                    sample.VirtualKeyCode =
+                        inputRecord.KeyEvent.VirtualKeyCode;
+
+                    sample.RepeatCount =
+                        inputRecord.KeyEvent.RepeatCount;
+
+                    sample.ControlKeyState =
+                        inputRecord.KeyEvent.ControlKeyState;
+
+                    return sample;
+                }
+
+                if (inputRecord.EventType == MOUSE_EVENT)
+                {
+                    sample.HasEvent = true;
+                    sample.IsMouseEvent = true;
+                    sample.X =
+                        inputRecord.MouseEvent.MousePosition.X;
+
+                    sample.Y =
+                        inputRecord.MouseEvent.MousePosition.Y;
+
+                    sample.ButtonState =
+                        inputRecord.MouseEvent.ButtonState;
+
+                    sample.EventFlags =
+                        inputRecord.MouseEvent.EventFlags;
+
+                    sample.ControlKeyState =
+                        inputRecord.MouseEvent.ControlKeyState;
+
+                    return sample;
+                }
+            }
+
+            double remainingMilliseconds =
+                (deadline - DateTime.UtcNow).TotalMilliseconds;
+
+            if (remainingMilliseconds <= 0)
+            {
+                return sample;
+            }
+
+            remaining =
+                (uint)Math.Ceiling(remainingMilliseconds);
+        }
+    }
+
+    public static MouseSample ReadMouseEvent(
+        IntPtr inputHandle,
+        uint timeoutMilliseconds
+    )
+    {
+        MouseSample sample = new MouseSample();
+
+        DateTime deadline =
+            DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
+
+        uint remaining = timeoutMilliseconds;
+
+        while (true)
+        {
+            InputSample inputSample =
+                ReadInputEvent(inputHandle, remaining);
+
+            if (!inputSample.HasEvent)
+            {
+                return sample;
+            }
+
+            if (inputSample.IsMouseEvent)
             {
                 sample.HasEvent = true;
-                sample.X =
-                    inputBuffer[0].MouseEvent.MousePosition.X;
-
-                sample.Y =
-                    inputBuffer[0].MouseEvent.MousePosition.Y;
-
-                sample.ButtonState =
-                    inputBuffer[0].MouseEvent.ButtonState;
-
-                sample.EventFlags =
-                    inputBuffer[0].MouseEvent.EventFlags;
-
+                sample.X = inputSample.X;
+                sample.Y = inputSample.Y;
+                sample.ButtonState = inputSample.ButtonState;
+                sample.EventFlags = inputSample.EventFlags;
                 return sample;
             }
 
