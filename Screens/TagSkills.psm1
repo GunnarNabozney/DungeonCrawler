@@ -324,6 +324,7 @@ function Draw-TagSkillButton {
         [object]$Button,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
@@ -395,6 +396,7 @@ function Draw-TagSkillButtons {
         [object[]]$SkillButtons,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
@@ -429,6 +431,7 @@ function Draw-TagSkillHelp {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
@@ -565,9 +568,11 @@ function Draw-TagSkillsScreen {
         [object]$CharacterDraft,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$SelectedSkills,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
@@ -661,9 +666,11 @@ function Update-TagSkillsRendering {
         [object]$CharacterDraft,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$SelectedSkills,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$SelectedSkillSet,
 
         [Parameter(Mandatory = $true)]
@@ -774,6 +781,7 @@ function Set-CharacterDraftMinorSkills {
         [object]$CharacterDraft,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$SelectedSkills,
 
         [Parameter(Mandatory = $true)]
