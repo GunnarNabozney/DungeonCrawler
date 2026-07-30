@@ -607,51 +607,53 @@ function Draw-TagSkillsScreen {
         [switch]$ClearScreen
     )
 
-    if ($ClearScreen) {
-        [Console]::Clear()
+    ConsoleUI\Invoke-ConsoleRedraw {
+        if ($ClearScreen) {
+            ConsoleUI\Clear-ConsoleScreen
+        }
+    
+        ConsoleUI\Draw-Frame
+        ConsoleUI\Write-Centered -Y 1 -Text 'TAG YOUR MINOR SKILLS' -Color DarkYellow
+    
+        $SummaryText = '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
+            $CharacterDraft.Name,
+            $CharacterDraft.Race,
+            $SelectedSkills.Count,
+            $GameRules.MinorTagSkillCount
+    
+        ConsoleUI\Write-Centered -Y 2 -Text $SummaryText -Color Gray
+    
+        Draw-TagSkillHeaders -SkillSections $SkillSections
+    
+        Draw-TagSkillButtons `
+            -SkillButtons $SkillButtons `
+            -SelectedSkills $SelectedSkills `
+            -RacialSkills $RacialSkills `
+            -GameRules $GameRules `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget
+    
+        Draw-TagSkillHelp `
+            -SelectedSkills $SelectedSkills `
+            -RacialSkills $RacialSkills `
+            -GameRules $GameRules `
+            -HoverTarget $HoverTarget
+    
+        $CanContinue = Test-TagSkillsReady `
+            -SelectedSkills $SelectedSkills `
+            -GameRules $GameRules
+    
+        Draw-TagActionButtons `
+            -BackButton $BackButton `
+            -ContinueButton $ContinueButton `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget `
+            -CanContinue $CanContinue
+    
+        Draw-TagSkillStatus `
+            -SelectedSkills $SelectedSkills `
+            -GameRules $GameRules
     }
-
-    ConsoleUI\Draw-Frame
-    ConsoleUI\Write-Centered -Y 1 -Text 'TAG YOUR MINOR SKILLS' -Color DarkYellow
-
-    $SummaryText = '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
-        $CharacterDraft.Name,
-        $CharacterDraft.Race,
-        $SelectedSkills.Count,
-        $GameRules.MinorTagSkillCount
-
-    ConsoleUI\Write-Centered -Y 2 -Text $SummaryText -Color Gray
-
-    Draw-TagSkillHeaders -SkillSections $SkillSections
-
-    Draw-TagSkillButtons `
-        -SkillButtons $SkillButtons `
-        -SelectedSkills $SelectedSkills `
-        -RacialSkills $RacialSkills `
-        -GameRules $GameRules `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget
-
-    Draw-TagSkillHelp `
-        -SelectedSkills $SelectedSkills `
-        -RacialSkills $RacialSkills `
-        -GameRules $GameRules `
-        -HoverTarget $HoverTarget
-
-    $CanContinue = Test-TagSkillsReady `
-        -SelectedSkills $SelectedSkills `
-        -GameRules $GameRules
-
-    Draw-TagActionButtons `
-        -BackButton $BackButton `
-        -ContinueButton $ContinueButton `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget `
-        -CanContinue $CanContinue
-
-    Draw-TagSkillStatus `
-        -SelectedSkills $SelectedSkills `
-        -GameRules $GameRules
 }
 
 function Update-TagSkillsRendering {
@@ -686,43 +688,45 @@ function Update-TagSkillsRendering {
         [string]$PressedTarget
     )
 
-    $SummaryText = '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
-        $CharacterDraft.Name,
-        $CharacterDraft.Race,
-        $SelectedSkills.Count,
-        $GameRules.MinorTagSkillCount
-
-    ConsoleUI\Clear-TextLine -Y 2
-    ConsoleUI\Write-Centered -Y 2 -Text $SummaryText -Color Gray
-
-    Draw-TagSkillButtons `
-        -SkillButtons $SkillButtons `
-        -SelectedSkills $SelectedSkills `
-        -RacialSkills $RacialSkills `
-        -GameRules $GameRules `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget
-
-    Draw-TagSkillHelp `
-        -SelectedSkills $SelectedSkills `
-        -RacialSkills $RacialSkills `
-        -GameRules $GameRules `
-        -HoverTarget $HoverTarget
-
-    $CanContinue = Test-TagSkillsReady `
-        -SelectedSkills $SelectedSkills `
-        -GameRules $GameRules
-
-    Draw-TagActionButtons `
-        -BackButton $BackButton `
-        -ContinueButton $ContinueButton `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget `
-        -CanContinue $CanContinue
-
-    Draw-TagSkillStatus `
-        -SelectedSkills $SelectedSkills `
-        -GameRules $GameRules
+    ConsoleUI\Invoke-ConsoleRedraw {
+        $SummaryText = '{0} the {1}   |   TAG SKILLS: {2} / {3}' -f
+            $CharacterDraft.Name,
+            $CharacterDraft.Race,
+            $SelectedSkills.Count,
+            $GameRules.MinorTagSkillCount
+    
+        ConsoleUI\Clear-TextLine -Y 2
+        ConsoleUI\Write-Centered -Y 2 -Text $SummaryText -Color Gray
+    
+        Draw-TagSkillButtons `
+            -SkillButtons $SkillButtons `
+            -SelectedSkills $SelectedSkills `
+            -RacialSkills $RacialSkills `
+            -GameRules $GameRules `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget
+    
+        Draw-TagSkillHelp `
+            -SelectedSkills $SelectedSkills `
+            -RacialSkills $RacialSkills `
+            -GameRules $GameRules `
+            -HoverTarget $HoverTarget
+    
+        $CanContinue = Test-TagSkillsReady `
+            -SelectedSkills $SelectedSkills `
+            -GameRules $GameRules
+    
+        Draw-TagActionButtons `
+            -BackButton $BackButton `
+            -ContinueButton $ContinueButton `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget `
+            -CanContinue $CanContinue
+    
+        Draw-TagSkillStatus `
+            -SelectedSkills $SelectedSkills `
+            -GameRules $GameRules
+    }
 }
 
 function Set-CharacterDraftMinorSkills {
@@ -771,7 +775,7 @@ function Show-CharacterCreationComplete {
         [object]$CharacterDraft
     )
 
-    [Console]::Clear()
+    ConsoleUI\Clear-ConsoleScreen
     ConsoleUI\Draw-Frame
     ConsoleUI\Write-Centered -Y 1 -Text 'CHARACTER CREATION COMPLETE' -Color Yellow
 

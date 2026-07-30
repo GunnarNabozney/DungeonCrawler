@@ -827,76 +827,78 @@ function Update-CreatorInteractiveRendering {
         [switch]$RefreshPreview
     )
 
-    Draw-CreatorRaceButtons `
-        -RaceButtons $RaceButtons `
-        -SelectedRaceId $SelectedRaceId `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget
-
-    if ([string]::IsNullOrWhiteSpace($SelectedRaceId)) {
-        if ($RefreshPreview) {
-            $HoverRaceId = Get-CreatorRaceIdFromTarget -Target $HoverTarget
-
-            Draw-CreatorRacePreview `
-                -RaceId $HoverRaceId `
-                -RaceData $RaceData `
-                -GameRules $GameRules
-        }
-    }
-    else {
-        Draw-CreatorNameControl `
-            -CharacterName $CharacterName `
-            -HoverTarget $HoverTarget `
-            -PressedTarget $PressedTarget
-
-        Draw-CreatorGenderControls `
-            -Gender $Gender `
-            -HoverTarget $HoverTarget `
-            -PressedTarget $PressedTarget
-
-        Draw-CreatorPointsSummary -PointsRemaining $PointsRemaining
-
-        Draw-CreatorAttributeRows `
+    ConsoleUI\Invoke-ConsoleRedraw {
+        Draw-CreatorRaceButtons `
+            -RaceButtons $RaceButtons `
             -SelectedRaceId $SelectedRaceId `
-            -RaceData $RaceData `
-            -GameRules $GameRules `
-            -AddedAttributes $AddedAttributes `
-            -PointsRemaining $PointsRemaining `
             -HoverTarget $HoverTarget `
             -PressedTarget $PressedTarget
-
-        $PreviousHoveredAttribute = Get-CreatorAttributeFromTarget `
-            -Target $PreviousHoverTarget
-
-        $CurrentHoveredAttribute = Get-CreatorAttributeFromTarget `
-            -Target $HoverTarget
-
-        if ($PreviousHoveredAttribute -ne $CurrentHoveredAttribute) {
-            Draw-CreatorAttributeDescription `
-                -GameRules $GameRules `
-                -HoverTarget $HoverTarget
+    
+        if ([string]::IsNullOrWhiteSpace($SelectedRaceId)) {
+            if ($RefreshPreview) {
+                $HoverRaceId = Get-CreatorRaceIdFromTarget -Target $HoverTarget
+    
+                Draw-CreatorRacePreview `
+                    -RaceId $HoverRaceId `
+                    -RaceData $RaceData `
+                    -GameRules $GameRules
+            }
         }
+        else {
+            Draw-CreatorNameControl `
+                -CharacterName $CharacterName `
+                -HoverTarget $HoverTarget `
+                -PressedTarget $PressedTarget
+    
+            Draw-CreatorGenderControls `
+                -Gender $Gender `
+                -HoverTarget $HoverTarget `
+                -PressedTarget $PressedTarget
+    
+            Draw-CreatorPointsSummary -PointsRemaining $PointsRemaining
+    
+            Draw-CreatorAttributeRows `
+                -SelectedRaceId $SelectedRaceId `
+                -RaceData $RaceData `
+                -GameRules $GameRules `
+                -AddedAttributes $AddedAttributes `
+                -PointsRemaining $PointsRemaining `
+                -HoverTarget $HoverTarget `
+                -PressedTarget $PressedTarget
+    
+            $PreviousHoveredAttribute = Get-CreatorAttributeFromTarget `
+                -Target $PreviousHoverTarget
+    
+            $CurrentHoveredAttribute = Get-CreatorAttributeFromTarget `
+                -Target $HoverTarget
+    
+            if ($PreviousHoveredAttribute -ne $CurrentHoveredAttribute) {
+                Draw-CreatorAttributeDescription `
+                    -GameRules $GameRules `
+                    -HoverTarget $HoverTarget
+            }
+        }
+    
+        $CanContinue = Test-CharacterCreatorReady `
+            -SelectedRaceId $SelectedRaceId `
+            -CharacterName $CharacterName `
+            -Gender $Gender `
+            -PointsRemaining $PointsRemaining
+    
+        Draw-CreatorActionButtons `
+            -BackButton $BackButton `
+            -ContinueButton $ContinueButton `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget `
+            -CanContinue $CanContinue
+    
+        Draw-CreatorStatus `
+            -SelectedRaceId $SelectedRaceId `
+            -CharacterName $CharacterName `
+            -Gender $Gender `
+            -PointsRemaining $PointsRemaining `
+            -HoverTarget $HoverTarget
     }
-
-    $CanContinue = Test-CharacterCreatorReady `
-        -SelectedRaceId $SelectedRaceId `
-        -CharacterName $CharacterName `
-        -Gender $Gender `
-        -PointsRemaining $PointsRemaining
-
-    Draw-CreatorActionButtons `
-        -BackButton $BackButton `
-        -ContinueButton $ContinueButton `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget `
-        -CanContinue $CanContinue
-
-    Draw-CreatorStatus `
-        -SelectedRaceId $SelectedRaceId `
-        -CharacterName $CharacterName `
-        -Gender $Gender `
-        -PointsRemaining $PointsRemaining `
-        -HoverTarget $HoverTarget
 }
 
 function Draw-CharacterCreatorScreen {
@@ -941,59 +943,61 @@ function Draw-CharacterCreatorScreen {
         [switch]$ClearScreen
     )
 
-    if ($ClearScreen) {
-        [Console]::Clear()
-    }
-
-    ConsoleUI\Draw-Frame
-    ConsoleUI\Write-Centered -Y 1 -Text 'CREATE YOUR ADVENTURER' -Color DarkYellow
-
-    Draw-CreatorRaceButtons `
-        -RaceButtons $RaceButtons `
-        -SelectedRaceId $SelectedRaceId `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget
-
-    if ([string]::IsNullOrWhiteSpace($SelectedRaceId)) {
-        $HoverRaceId = Get-CreatorRaceIdFromTarget -Target $HoverTarget
-
-        Draw-CreatorRacePreview `
-            -RaceId $HoverRaceId `
-            -RaceData $RaceData `
-            -GameRules $GameRules
-    }
-    else {
-        Draw-CreatorCharacterSheet `
+    ConsoleUI\Invoke-ConsoleRedraw {
+        if ($ClearScreen) {
+            ConsoleUI\Clear-ConsoleScreen
+        }
+    
+        ConsoleUI\Draw-Frame
+        ConsoleUI\Write-Centered -Y 1 -Text 'CREATE YOUR ADVENTURER' -Color DarkYellow
+    
+        Draw-CreatorRaceButtons `
+            -RaceButtons $RaceButtons `
             -SelectedRaceId $SelectedRaceId `
-            -RaceData $RaceData `
-            -GameRules $GameRules `
-            -AddedAttributes $AddedAttributes `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget
+    
+        if ([string]::IsNullOrWhiteSpace($SelectedRaceId)) {
+            $HoverRaceId = Get-CreatorRaceIdFromTarget -Target $HoverTarget
+    
+            Draw-CreatorRacePreview `
+                -RaceId $HoverRaceId `
+                -RaceData $RaceData `
+                -GameRules $GameRules
+        }
+        else {
+            Draw-CreatorCharacterSheet `
+                -SelectedRaceId $SelectedRaceId `
+                -RaceData $RaceData `
+                -GameRules $GameRules `
+                -AddedAttributes $AddedAttributes `
+                -CharacterName $CharacterName `
+                -Gender $Gender `
+                -PointsRemaining $PointsRemaining `
+                -HoverTarget $HoverTarget `
+                -PressedTarget $PressedTarget
+        }
+    
+        $CanContinue = Test-CharacterCreatorReady `
+            -SelectedRaceId $SelectedRaceId `
+            -CharacterName $CharacterName `
+            -Gender $Gender `
+            -PointsRemaining $PointsRemaining
+    
+        Draw-CreatorActionButtons `
+            -BackButton $BackButton `
+            -ContinueButton $ContinueButton `
+            -HoverTarget $HoverTarget `
+            -PressedTarget $PressedTarget `
+            -CanContinue $CanContinue
+    
+        Draw-CreatorStatus `
+            -SelectedRaceId $SelectedRaceId `
             -CharacterName $CharacterName `
             -Gender $Gender `
             -PointsRemaining $PointsRemaining `
-            -HoverTarget $HoverTarget `
-            -PressedTarget $PressedTarget
+            -HoverTarget $HoverTarget
     }
-
-    $CanContinue = Test-CharacterCreatorReady `
-        -SelectedRaceId $SelectedRaceId `
-        -CharacterName $CharacterName `
-        -Gender $Gender `
-        -PointsRemaining $PointsRemaining
-
-    Draw-CreatorActionButtons `
-        -BackButton $BackButton `
-        -ContinueButton $ContinueButton `
-        -HoverTarget $HoverTarget `
-        -PressedTarget $PressedTarget `
-        -CanContinue $CanContinue
-
-    Draw-CreatorStatus `
-        -SelectedRaceId $SelectedRaceId `
-        -CharacterName $CharacterName `
-        -Gender $Gender `
-        -PointsRemaining $PointsRemaining `
-        -HoverTarget $HoverTarget
 }
 
 function New-CharacterDraft {

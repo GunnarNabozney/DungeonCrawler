@@ -5,7 +5,7 @@ function Invoke-LoadGameScreen {
     param()
 
     [Console]::CursorVisible = $false
-    [Console]::Clear()
+    ConsoleUI\Clear-ConsoleScreen
 
     ConsoleUI\Draw-Frame
 

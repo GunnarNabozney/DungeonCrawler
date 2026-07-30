@@ -70,34 +70,36 @@ function Draw-Torches {
         [int]$Frame
     )
 
-    $SelectedFrame =
-        $script:TorchFrames[
-            $Frame % $script:TorchFrames.Count
-        ]
-
-    for (
-        $Index = 0;
-        $Index -lt $SelectedFrame.Count;
-        $Index++
-    ) {
-        $Color = if ($Index -le 2) {
-            [ConsoleColor]::Yellow
+    ConsoleUI\Invoke-ConsoleRedraw {
+        $SelectedFrame =
+            $script:TorchFrames[
+                $Frame % $script:TorchFrames.Count
+            ]
+    
+        for (
+            $Index = 0;
+            $Index -lt $SelectedFrame.Count;
+            $Index++
+        ) {
+            $Color = if ($Index -le 2) {
+                [ConsoleColor]::Yellow
+            }
+            else {
+                [ConsoleColor]::DarkYellow
+            }
+    
+            ConsoleUI\Write-At `
+                -X 5 `
+                -Y (5 + $Index) `
+                -Text $SelectedFrame[$Index] `
+                -Color $Color
+    
+            ConsoleUI\Write-At `
+                -X 68 `
+                -Y (5 + $Index) `
+                -Text $SelectedFrame[$Index] `
+                -Color $Color
         }
-        else {
-            [ConsoleColor]::DarkYellow
-        }
-
-        ConsoleUI\Write-At `
-            -X 5 `
-            -Y (5 + $Index) `
-            -Text $SelectedFrame[$Index] `
-            -Color $Color
-
-        ConsoleUI\Write-At `
-            -X 68 `
-            -Y (5 + $Index) `
-            -Text $SelectedFrame[$Index] `
-            -Color $Color
     }
 }
 
@@ -105,16 +107,18 @@ function Clear-Torches {
     [CmdletBinding()]
     param()
 
-    for ($Index = 0; $Index -lt 6; $Index++) {
-        ConsoleUI\Write-At `
-            -X 5 `
-            -Y (5 + $Index) `
-            -Text (' ' * 7)
-
-        ConsoleUI\Write-At `
-            -X 68 `
-            -Y (5 + $Index) `
-            -Text (' ' * 7)
+    ConsoleUI\Invoke-ConsoleRedraw {
+        for ($Index = 0; $Index -lt 6; $Index++) {
+            ConsoleUI\Write-At `
+                -X 5 `
+                -Y (5 + $Index) `
+                -Text (' ' * 7)
+    
+            ConsoleUI\Write-At `
+                -X 68 `
+                -Y (5 + $Index) `
+                -Text (' ' * 7)
+        }
     }
 }
 
@@ -211,7 +215,7 @@ function Show-MainMenuIntro {
         [object[]]$Buttons
     )
 
-    [Console]::Clear()
+    ConsoleUI\Clear-ConsoleScreen
 
     ConsoleUI\Draw-Frame
 
@@ -338,7 +342,7 @@ function Show-ExitAnimation {
 
     Start-Sleep -Milliseconds 160
 
-    [Console]::Clear()
+    ConsoleUI\Clear-ConsoleScreen
 }
 
 Export-ModuleMember -Function @(

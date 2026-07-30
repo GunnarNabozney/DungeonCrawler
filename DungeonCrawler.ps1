@@ -203,6 +203,8 @@ $RequiredCommands = @(
     'Invoke-TagSkillsScreen'
     'Invoke-LoadGameScreen'
     'Write-At'
+    'Clear-ConsoleScreen'
+    'Invoke-ConsoleRedraw'
     'Draw-Frame'
     'Draw-Button'
     'Start-ConsoleMouseSession'
