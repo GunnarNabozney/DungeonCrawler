@@ -72,18 +72,42 @@ function Draw-CharacterPreview {
         -Color DarkYellow
 
     $AttributeLayout = @(
-        @('Strength', 7, 11)
-        @('Intelligence', 7, 12)
-        @('Wisdom', 7, 13)
-        @('Agility', 40, 11)
-        @('Fortitude', 40, 12)
-        @('Charisma', 40, 13)
+        [pscustomobject]@{
+            Name = 'Strength'
+            X = 7
+            Y = 11
+        }
+        [pscustomobject]@{
+            Name = 'Intelligence'
+            X = 7
+            Y = 12
+        }
+        [pscustomobject]@{
+            Name = 'Wisdom'
+            X = 7
+            Y = 13
+        }
+        [pscustomobject]@{
+            Name = 'Agility'
+            X = 40
+            Y = 11
+        }
+        [pscustomobject]@{
+            Name = 'Fortitude'
+            X = 40
+            Y = 12
+        }
+        [pscustomobject]@{
+            Name = 'Charisma'
+            X = 40
+            Y = 13
+        }
     )
 
     foreach ($Entry in $AttributeLayout) {
-        $AttributeName = [string]$Entry[0]
-        $X = [int]$Entry[1]
-        $Y = [int]$Entry[2]
+        $AttributeName = [string]$Entry.Name
+        $X = [int]$Entry.X
+        $Y = [int]$Entry.Y
 
         $Value = Get-CharacterPreviewValue `
             -Map $CharacterDraft.Attributes `
