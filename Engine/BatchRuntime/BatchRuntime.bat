@@ -51,6 +51,7 @@ if /i "%~1"==":Text.Save" goto :Text.Save
 if /i "%~1"==":Text.Compare" goto :Text.Compare
 if /i "%~1"==":Text.Show" goto :Text.Show
 if /i "%~1"==":Text.Release" goto :Text.Release
+if /i "%~1"==":ReturnError" goto :ReturnError
 
 call :SetError 60 UnknownRuntimeCommand "Unknown BatchRuntime command: %~1" "" "" "" "Known runtime command" "%~1"
 exit /b 60
@@ -595,12 +596,17 @@ goto :Invoke.Cleanup20
 if "!BRT.LastError!"=="@NULL" call :SetError 60 InvalidFunctionSchema "The module supplied an invalid function schema." "!BRT.Internal.Invoke.Module!" "!BRT.Internal.Invoke.Function!" "" "Valid schema" "Invalid schema"
 goto :Invoke.Cleanup60
 :Invoke.FailModule
+if "!BRT.F.%BRT.Internal.Invoke.Frame%.PropagatedError!"=="1" goto :Invoke.FailModule.Propagated
 if not "!BRT.LastError!"=="@NULL" (
     set "BRT.Internal.Invoke.DynamicExit=!BRT.O.%BRT.LastError%.Code!"
     goto :Invoke.CleanupDynamic
 )
 call :SetError 30 ModuleInvocationFailed "The module function returned a nonzero exit code." "!BRT.Internal.Invoke.Module!" "!BRT.Internal.Invoke.Function!" "" "Exit 0" "Exit !BRT.Internal.Invoke.ModuleExit!"
 set "BRT.Internal.Invoke.DynamicExit=30"
+goto :Invoke.CleanupDynamic
+:Invoke.FailModule.Propagated
+set "BRT.Internal.Invoke.DynamicExit=!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Code!"
+call :SetError "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Code!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Kind!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Message!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Module!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Function!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Parameter!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Expected!" "!BRT.F.%BRT.Internal.Invoke.Frame%.Error.Actual!"
 goto :Invoke.CleanupDynamic
 :Invoke.FailReturn
 if "!BRT.LastError!"=="@NULL" call :SetError 40 InvalidReturnObject "The module returned an invalid object." "!BRT.Internal.Invoke.Module!" "!BRT.Internal.Invoke.Function!" "" "Valid return object" "Invalid return object"
@@ -630,6 +636,31 @@ call :ReleaseObjectInternal "!BRT.Internal.Invoke.ReturnObject!"
 call :ReleaseFrame "!BRT.Internal.Invoke.Frame!"
 call :ClearPrefix "BRT.X.Schema."
 exit /b 60
+
+:ReturnError
+rem Module-only helper. Calling this command closes the module function's setlocal.
+if "!BRT.LastError!"=="@NULL" (
+    endlocal
+    exit /b 30
+)
+set "BRT.Internal.ReturnError.Frame=!BRT.ActiveFrame!"
+if "!BRT.Internal.ReturnError.Frame!"=="@NULL" (
+    endlocal
+    exit /b 30
+)
+if not "!BRT.F.%BRT.Internal.ReturnError.Frame%.__Exists!"=="1" (
+    endlocal
+    exit /b 30
+)
+set "BRT.Internal.ReturnError.Code=!BRT.O.%BRT.LastError%.Code!"
+set "BRT.Internal.ReturnError.Kind=!BRT.O.%BRT.LastError%.Kind!"
+set "BRT.Internal.ReturnError.Message=!BRT.O.%BRT.LastError%.Message!"
+set "BRT.Internal.ReturnError.Module=!BRT.O.%BRT.LastError%.Module!"
+set "BRT.Internal.ReturnError.Function=!BRT.O.%BRT.LastError%.Function!"
+set "BRT.Internal.ReturnError.Parameter=!BRT.O.%BRT.LastError%.Parameter!"
+set "BRT.Internal.ReturnError.Expected=!BRT.O.%BRT.LastError%.Expected!"
+set "BRT.Internal.ReturnError.Actual=!BRT.O.%BRT.LastError%.Actual!"
+endlocal & set "BRT.F.%BRT.Internal.ReturnError.Frame%.PropagatedError=1" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Code=%BRT.Internal.ReturnError.Code%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Kind=%BRT.Internal.ReturnError.Kind%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Message=%BRT.Internal.ReturnError.Message%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Module=%BRT.Internal.ReturnError.Module%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Function=%BRT.Internal.ReturnError.Function%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Parameter=%BRT.Internal.ReturnError.Parameter%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Expected=%BRT.Internal.ReturnError.Expected%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Actual=%BRT.Internal.ReturnError.Actual%" & exit /b %BRT.Internal.ReturnError.Code%
 
 :BindParameters
 call :RequireInitialized

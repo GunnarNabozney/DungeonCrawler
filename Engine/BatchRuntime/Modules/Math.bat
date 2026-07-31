@@ -102,8 +102,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set /a Sum=Left+Right
 if !Left! GTR 0 if !Right! GTR 0 if !Sum! LSS 0 (
@@ -123,8 +123,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set "ClampedValue=!Value!"
 set "WasClamped=0"
@@ -148,8 +148,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 if "!Divisor!"=="0" (
     endlocal

@@ -39,8 +39,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 endlocal & set "BRT.O.%ReturnObject%.Value=%Value%"
 exit /b 0

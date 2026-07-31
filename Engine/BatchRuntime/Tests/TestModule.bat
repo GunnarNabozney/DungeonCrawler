@@ -212,8 +212,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set /a Sum=Left+Right
 endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
@@ -225,8 +225,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set "ClampedValue=!Value!"
 set "WasClamped=0"
@@ -250,8 +250,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 endlocal & (
     set "BRT.O.%ReturnObject%.Left=%Left%"
@@ -265,18 +265,18 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 call "!BRT.Runtime!" :Object.Get "!Pair!" Left PairLeft
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 call "!BRT.Runtime!" :Object.Get "!Pair!" Right PairRight
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set /a Sum=PairLeft+PairRight
 endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
@@ -288,24 +288,24 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" Add InnerResult --Left "!Left!" --Right "!Right!"
-set "InnerExit=!errorlevel!"
-if not "!InnerExit!"=="0" (
-    endlocal & exit /b !InnerExit!
+if errorlevel 1 (
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 call "!BRT.Runtime!" :Object.Get "!InnerResult!" Sum NestedSum
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 call "!BRT.Runtime!" :Object.Release "!InnerResult!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 endlocal & set "BRT.O.%ReturnObject%.Sum=%NestedSum%"
 exit /b 0
@@ -316,8 +316,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 endlocal & (
     set "BRT.O.%ReturnObject%.Color=%Color%"
@@ -334,8 +334,11 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" Add InnerResult --Left 1
-set "InnerExit=!errorlevel!"
-endlocal & exit /b %InnerExit%
+if errorlevel 1 (
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
+)
+endlocal & exit /b 30
 
 :Invoke.NestedBrokenReturn
 setlocal EnableExtensions EnableDelayedExpansion
@@ -343,8 +346,11 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" BrokenReturn InnerResult
-set "InnerExit=!errorlevel!"
-endlocal & exit /b %InnerExit%
+if errorlevel 1 (
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
+)
+endlocal & exit /b 30
 
 :Invoke.DeepNest
 setlocal EnableExtensions EnableDelayedExpansion
@@ -352,8 +358,8 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
-    endlocal
-    exit /b 30
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 if "!Depth!"=="0" (
@@ -361,20 +367,20 @@ if "!Depth!"=="0" (
 ) else (
     set /a NextDepth=Depth-1
     call "!BRT.Runtime!" :Invoke "!SelfAlias!" DeepNest InnerResult --Depth "!NextDepth!"
-    set "InnerExit=!errorlevel!"
-    if not "!InnerExit!"=="0" (
-    endlocal & exit /b !InnerExit!
-)
+    if errorlevel 1 (
+        call "!BRT.Runtime!" :ReturnError
+        exit /b !errorlevel!
+    )
     call "!BRT.Runtime!" :Object.Get "!InnerResult!" Sum NestedSum
     if errorlevel 1 (
-    endlocal
-    exit /b 30
-)
+        call "!BRT.Runtime!" :ReturnError
+        exit /b !errorlevel!
+    )
     call "!BRT.Runtime!" :Object.Release "!InnerResult!"
     if errorlevel 1 (
-    endlocal
-    exit /b 30
-)
+        call "!BRT.Runtime!" :ReturnError
+        exit /b !errorlevel!
+    )
 )
 endlocal & set "BRT.O.%ReturnObject%.Sum=%NestedSum%"
 exit /b 0
@@ -385,9 +391,9 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" MakePair TemporaryObject --Left 20 --Right 22
-set "InnerExit=!errorlevel!"
-if not "!InnerExit!"=="0" (
-    endlocal & exit /b !InnerExit!
+if errorlevel 1 (
+    call "!BRT.Runtime!" :ReturnError
+    exit /b !errorlevel!
 )
 endlocal & set "BRT.O.%ReturnObject%.Value=42"
 exit /b 0
