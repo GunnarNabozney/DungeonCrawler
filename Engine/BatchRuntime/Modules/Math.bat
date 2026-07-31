@@ -75,9 +75,9 @@ if /i "%~3"=="Clamp" goto :Invoke.Clamp
 exit /b 65
 
 :Invoke.Add
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
@@ -88,9 +88,9 @@ endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
 exit /b 0
 
 :Invoke.Clamp
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal

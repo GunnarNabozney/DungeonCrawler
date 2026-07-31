@@ -264,10 +264,23 @@ set /a BRT.Internal.Invoke.Index+=1
 goto :Invoke.ApplyDefaultNext
 
 :Invoke.CallModule
+rem Persist values that must survive a nested runtime invocation.
+set "BRT.F.!BRT.Internal.Invoke.Frame!.OutputVar=!BRT.Internal.Invoke.OutputVar!"
+
 set "BRT.ActiveFrame=!BRT.Internal.Invoke.Frame!"
 call "!BRT.Internal.Invoke.ModulePath!" __BRT__ INVOKE "!BRT.Internal.Invoke.Function!" "!BRT.Internal.Invoke.Frame!" "!BRT.Internal.Invoke.ReturnObject!"
 set "BRT.Internal.Invoke.ModuleExit=!errorlevel!"
+
+rem Nested calls restore ActiveFrame to this invocation's frame. Recover the
+rem outer state from that frame instead of shared BRT.Internal.Invoke values.
+set "BRT.Internal.Invoke.Frame=!BRT.ActiveFrame!"
+set "BRT.Internal.Invoke.Module=!BRT.F.%BRT.Internal.Invoke.Frame%.Module!"
+set "BRT.Internal.Invoke.Function=!BRT.F.%BRT.Internal.Invoke.Frame%.Function!"
+set "BRT.Internal.Invoke.OutputVar=!BRT.F.%BRT.Internal.Invoke.Frame%.OutputVar!"
+set "BRT.Internal.Invoke.ReturnObject=!BRT.F.%BRT.Internal.Invoke.Frame%.ReturnObject!"
+set "BRT.Internal.Invoke.ModulePath=!BRT.M.%BRT.Internal.Invoke.Module%.Path!"
 set "BRT.ActiveFrame=!BRT.F.%BRT.Internal.Invoke.Frame%.ParentFrame!"
+
 if not "!BRT.Internal.Invoke.ModuleExit!"=="0" goto :Invoke.FailModule
 call :ValidateReturnObject "!BRT.Internal.Invoke.ReturnObject!"
 if errorlevel 1 goto :Invoke.FailReturn
@@ -275,9 +288,7 @@ set "BRT.O.!BRT.Internal.Invoke.ReturnObject!.__Sealed=1"
 set "!BRT.Internal.Invoke.OutputVar!=!BRT.Internal.Invoke.ReturnObject!"
 call :ReleaseFrame "!BRT.Internal.Invoke.Frame!"
 call :ClearPrefix "BRT.X.Schema."
-exit /b 0
-
-:Invoke.FailUnknownParameter
+exit /b 0:Invoke.FailUnknownParameter
 call :SetError 20 UnknownParameter "The function schema does not contain the supplied named parameter." "!BRT.Internal.Invoke.Module!" "!BRT.Internal.Invoke.Function!" "!BRT.Internal.Invoke.ParameterName!" "Declared parameter" "!BRT.Internal.Invoke.ParameterName!"
 goto :Invoke.Cleanup20
 :Invoke.FailDuplicateParameter
@@ -629,7 +640,13 @@ set "BRT.Internal.Index=1"
 if !BRT.Internal.Index! GTR !BRT.X.Schema.Parameter.Count! exit /b 0
 set "BRT.Internal.Name=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.Name!"
 set "BRT.F.!BRT.Internal.Frame!.Parameter.!BRT.Internal.Index!.Name=!BRT.Internal.Name!"
-for %%P in (Type Required Position HasDefault Default Choices ObjectType) do set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.%%P=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.%%P!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.Type=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.Type!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.Required=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.Required!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.Position=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.Position!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.HasDefault=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.HasDefault!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.Default=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.Default!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.Choices=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.Choices!"
+set "BRT.F.!BRT.Internal.Frame!.P.!BRT.Internal.Name!.ObjectType=!BRT.X.Schema.Parameter.%BRT.Internal.Index%.ObjectType!"
 set /a BRT.Internal.Index+=1
 goto :CopySchemaToFrame.Next
 
@@ -649,7 +666,10 @@ if !BRT.Internal.Index! GTR !BRT.X.Schema.Return.Count! (
 set "BRT.Internal.Name=!BRT.X.Schema.Return.%BRT.Internal.Index%.Name!"
 set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Index!.Name=!BRT.Internal.Name!"
 set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Name!.Declared=1"
-for %%P in (Type Required Choices ObjectType) do set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Name!.%%P=!BRT.X.Schema.Return.%BRT.Internal.Index%.%%P!"
+set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Name!.Type=!BRT.X.Schema.Return.%BRT.Internal.Index%.Type!"
+set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Name!.Required=!BRT.X.Schema.Return.%BRT.Internal.Index%.Required!"
+set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Name!.Choices=!BRT.X.Schema.Return.%BRT.Internal.Index%.Choices!"
+set "BRT.O.!BRT.Internal.ReturnObject!.__Field.!BRT.Internal.Name!.ObjectType=!BRT.X.Schema.Return.%BRT.Internal.Index%.ObjectType!"
 set /a BRT.Internal.Index+=1
 goto :CreateReturnObject.Next
 
@@ -728,13 +748,30 @@ call :ValidateId "!BRT.Internal.Value!"
 exit /b !errorlevel!
 :ValidateValue.Enum
 if not defined BRT.Internal.Choices exit /b 1
-for %%C in (!BRT.Internal.Choices:|= !) do (
-    if /i "%%~C"=="!BRT.Internal.Value!" (
-        set "BRT.Internal.Normalized=%%~C"
-        exit /b 0
-    )
+
+set "BRT.Internal.EnumRemaining=!BRT.Internal.Choices!"
+
+:ValidateValue.EnumNext
+if not defined BRT.Internal.EnumRemaining exit /b 1
+
+set "BRT.Internal.EnumChoice="
+set "BRT.Internal.EnumRest="
+
+for /f "tokens=1,* delims=," %%A in ("!BRT.Internal.EnumRemaining!") do (
+    set "BRT.Internal.EnumChoice=%%~A"
+    set "BRT.Internal.EnumRest=%%~B"
 )
-exit /b 1
+
+call :ValidateId "!BRT.Internal.EnumChoice!"
+if errorlevel 1 exit /b 1
+
+if /i "!BRT.Internal.EnumChoice!"=="!BRT.Internal.Value!" (
+    set "BRT.Internal.Normalized=!BRT.Internal.EnumChoice!"
+    exit /b 0
+)
+
+set "BRT.Internal.EnumRemaining=!BRT.Internal.EnumRest!"
+goto :ValidateValue.EnumNext
 :ValidateValue.Object
 call :ValidateObjectHandle "!BRT.Internal.Value!"
 if errorlevel 1 exit /b 1
@@ -898,31 +935,84 @@ exit /b 1
 :ValidateId
 set "BRT.Internal.Test=%~1"
 if not defined BRT.Internal.Test exit /b 1
-set "BRT.Internal.First=!BRT.Internal.Test:~0,1!"
-set "BRT.Internal.Work=!BRT.Internal.First!"
-for %%C in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z) do set "BRT.Internal.Work=!BRT.Internal.Work:%%C=!"
-if defined BRT.Internal.Work exit /b 1
+
+set "BRT.Internal.Character=!BRT.Internal.Test:~0,1!"
+call :ValidateAlphaCharacter "!BRT.Internal.Character!"
+if errorlevel 1 exit /b 1
+
 set "BRT.Internal.Work=!BRT.Internal.Test!"
-for %%C in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z 0 1 2 3 4 5 6 7 8 9 _) do set "BRT.Internal.Work=!BRT.Internal.Work:%%C=!"
-if defined BRT.Internal.Work exit /b 1
-exit /b 0
+
+:ValidateId.NextCharacter
+if not defined BRT.Internal.Work exit /b 0
+
+set "BRT.Internal.Character=!BRT.Internal.Work:~0,1!"
+
+call :ValidateAlphaCharacter "!BRT.Internal.Character!"
+if not errorlevel 1 goto :ValidateId.Advance
+
+call :ValidateDigitCharacter "!BRT.Internal.Character!"
+if not errorlevel 1 goto :ValidateId.Advance
+
+if "!BRT.Internal.Character!"=="_" goto :ValidateId.Advance
+
+exit /b 1
+
+:ValidateId.Advance
+set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
+goto :ValidateId.NextCharacter
 
 :ValidateInt
 set "BRT.Internal.Work=%~1"
 if not defined BRT.Internal.Work exit /b 1
-if "!BRT.Internal.Work:~0,1!"=="-" set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
+
+if "!BRT.Internal.Work:~0,1!"=="-" (
+    set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
+)
+
 if not defined BRT.Internal.Work exit /b 1
-for %%C in (0 1 2 3 4 5 6 7 8 9) do set "BRT.Internal.Work=!BRT.Internal.Work:%%C=!"
-if defined BRT.Internal.Work exit /b 1
-exit /b 0
+
+:ValidateInt.NextCharacter
+if not defined BRT.Internal.Work exit /b 0
+
+set "BRT.Internal.Character=!BRT.Internal.Work:~0,1!"
+
+call :ValidateDigitCharacter "!BRT.Internal.Character!"
+if errorlevel 1 exit /b 1
+
+set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
+goto :ValidateInt.NextCharacter
 
 :ValidateUInt
 set "BRT.Internal.Work=%~1"
 if not defined BRT.Internal.Work exit /b 1
-for %%C in (0 1 2 3 4 5 6 7 8 9) do set "BRT.Internal.Work=!BRT.Internal.Work:%%C=!"
-if defined BRT.Internal.Work exit /b 1
-exit /b 0
 
+:ValidateUInt.NextCharacter
+if not defined BRT.Internal.Work exit /b 0
+
+set "BRT.Internal.Character=!BRT.Internal.Work:~0,1!"
+
+call :ValidateDigitCharacter "!BRT.Internal.Character!"
+if errorlevel 1 exit /b 1
+
+set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
+goto :ValidateUInt.NextCharacter
+
+:ValidateAlphaCharacter
+for %%C in (
+    A B C D E F G H I J K L M
+    N O P Q R S T U V W X Y Z
+) do (
+    if /i "%~1"=="%%C" exit /b 0
+)
+
+exit /b 1
+
+:ValidateDigitCharacter
+for %%C in (0 1 2 3 4 5 6 7 8 9) do (
+    if "%~1"=="%%C" exit /b 0
+)
+
+exit /b 1
 :ValidateBool
 call :NormalizeBool "%~1"
 exit /b !errorlevel!

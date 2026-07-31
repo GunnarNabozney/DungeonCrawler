@@ -195,6 +195,7 @@ Every function invocation should enter its own local scope:
 setlocal EnableExtensions EnableDelayedExpansion
 ```
 
+Capture `Frame` and `ReturnObject` only after entering that local scope. This prevents a nested invocation of the same module from overwriting the outer function's handles.
 Parameters are then bound as local variables:
 
 ```bat
@@ -216,7 +217,7 @@ See `Templates\ModuleTemplate.bat` and `Modules\Math.bat`.
 - `UInt` - non-negative decimal integer syntax
 - `Bool` - normalized to `0` or `1`
 - `Id` - begins with a letter; then letters, digits, or underscores
-- `Enum` - one value from a pipe-delimited schema list
+- `Enum` - one value from a comma-delimited list of identifier-safe choices
 - `Object` - a live BatchRuntime object handle, optionally restricted by object type
 
 Optional parameters without defaults are bound to `@NULL`.

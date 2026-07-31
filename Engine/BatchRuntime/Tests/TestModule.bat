@@ -139,7 +139,7 @@ set "BRT.X.Schema.Parameter.1.Type=Enum"
 set "BRT.X.Schema.Parameter.1.Required=1"
 set "BRT.X.Schema.Parameter.1.Position=1"
 set "BRT.X.Schema.Parameter.1.HasDefault=0"
-set "BRT.X.Schema.Parameter.1.Choices=Red|Green|Blue"
+set "BRT.X.Schema.Parameter.1.Choices=Red,Green,Blue"
 set "BRT.X.Schema.Parameter.2.Name=Bright"
 set "BRT.X.Schema.Parameter.2.Type=Bool"
 set "BRT.X.Schema.Parameter.2.Required=0"
@@ -150,7 +150,7 @@ set "BRT.X.Schema.Return.Count=2"
 set "BRT.X.Schema.Return.1.Name=Color"
 set "BRT.X.Schema.Return.1.Type=Enum"
 set "BRT.X.Schema.Return.1.Required=1"
-set "BRT.X.Schema.Return.1.Choices=Red|Green|Blue"
+set "BRT.X.Schema.Return.1.Choices=Red,Green,Blue"
 set "BRT.X.Schema.Return.2.Name=Bright"
 set "BRT.X.Schema.Return.2.Type=Bool"
 set "BRT.X.Schema.Return.2.Required=1"
@@ -175,11 +175,11 @@ if /i "%~3"=="BrokenReturn" goto :Invoke.BrokenReturn
 exit /b 65
 
 :Invoke.Add
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 goto :Function.Add
 :Function.Add
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
@@ -190,11 +190,11 @@ endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
 exit /b 0
 
 :Invoke.Clamp
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 goto :Function.Clamp
 :Function.Clamp
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
@@ -217,11 +217,11 @@ endlocal & (
 exit /b 0
 
 :Invoke.MakePair
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 goto :Function.MakePair
 :Function.MakePair
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
@@ -234,11 +234,11 @@ endlocal & (
 exit /b 0
 
 :Invoke.SumPair
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 goto :Function.SumPair
 :Function.SumPair
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
@@ -259,11 +259,11 @@ endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
 exit /b 0
 
 :Invoke.NestedAdd
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 goto :Function.NestedAdd
 :Function.NestedAdd
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
@@ -289,11 +289,11 @@ endlocal & set "BRT.O.%ReturnObject%.Sum=%NestedSum%"
 exit /b 0
 
 :Invoke.ChooseColor
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 goto :Function.ChooseColor
 :Function.ChooseColor
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal

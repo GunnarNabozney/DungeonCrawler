@@ -39,9 +39,9 @@ if /i "%~3"=="EchoInt" goto :Invoke.EchoInt
 exit /b 65
 
 :Invoke.EchoInt
+setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
-setlocal EnableExtensions EnableDelayedExpansion
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 (
     endlocal
