@@ -2,215 +2,238 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "Runtime=%~dp0..\BatchRuntime.bat"
+set "BatchTest=%~dp0..\BatchTest.bat"
 set "TestModule=%~dp0TestModule.bat"
-set "Tests=0"
-set "Passed=0"
-set "Failed=0"
-set "Abort="
+set "BadSchemaModule=%~dp0BadSchemaModule.bat"
+set "DependencyModule=%~dp0DependencyModule.bat"
+set "MissingDependencyModule=%~dp0MissingDependencyModule.bat"
+set "MathModule=%~dp0..\Modules\Math.bat"
 
-echo BatchRuntime Version 1 self-test
-echo =================================
+call "!BatchTest!" begin suite "BatchRuntime 1.1 human-readable self-test"
 
-call "!Runtime!" :Initialize
-call :RequireExit "Initialize runtime" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Import Test "!TestModule!"
-call :RequireExit "Import module" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :GetStat ModuleCount Actual
-call :RequireExit "Read module count" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "One module imported" "!Actual!" "1"
-
-call "!Runtime!" :Invoke Test Add Result --Left 17 --Right 25
-call :RequireExit "Named parameter invocation" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!Result!" Sum Actual
-call :RequireExit "Read named result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Named Add returns 42" "!Actual!" "42"
-call "!Runtime!" :Object.Release "!Result!"
-call :RequireExit "Release named result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Invoke Test Add Result 9 6
-call :RequireExit "Positional parameter invocation" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!Result!" Sum Actual
-call :RequireExit "Read positional result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Positional Add returns 15" "!Actual!" "15"
-call "!Runtime!" :Object.Release "!Result!"
-call :RequireExit "Release positional result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Invoke Test Clamp Result --Value 150
-call :RequireExit "Default parameter invocation" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!Result!" Value Actual
-call :RequireExit "Read clamped value" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Default maximum clamps to 100" "!Actual!" "100"
-call "!Runtime!" :Object.Get "!Result!" WasClamped Actual
-call :RequireExit "Read clamp flag" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Clamp flag is true" "!Actual!" "1"
-call "!Runtime!" :Object.Release "!Result!"
-call :RequireExit "Release clamp result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Invoke Test Clamp Result -5 -10 10
-call :RequireExit "Signed integer invocation" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!Result!" Value Actual
-call :RequireExit "Read signed result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Signed value remains -5" "!Actual!" "-5"
-call "!Runtime!" :Object.Get "!Result!" WasClamped Actual
-call :RequireExit "Read unclamped flag" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Unclamped flag is false" "!Actual!" "0"
-call "!Runtime!" :Object.Release "!Result!"
-call :RequireExit "Release signed result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Invoke Test ChooseColor Result --Color green --Bright
-call :RequireExit "Enum and bare Boolean invocation" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!Result!" Color Actual
-call :RequireExit "Read enum result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Enum is normalized to schema spelling" "!Actual!" "Green"
-call "!Runtime!" :Object.Get "!Result!" Bright Actual
-call :RequireExit "Read Boolean result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Bare Boolean switch becomes true" "!Actual!" "1"
-call "!Runtime!" :Object.Release "!Result!"
-call :RequireExit "Release enum result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Invoke Test MakePair PairResult --Left 12 --Right 30
-call :RequireExit "Create return object" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Invoke Test SumPair SumResult --Pair "!PairResult!"
-call :RequireExit "Pass object as parameter" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!SumResult!" Sum Actual
-call :RequireExit "Read object-parameter result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Object parameter preserves typed fields" "!Actual!" "42"
-call "!Runtime!" :Object.Release "!SumResult!"
-call :RequireExit "Release object-parameter result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Release "!PairResult!"
-call :RequireExit "Release pair object" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-call "!Runtime!" :Invoke Test NestedAdd Result --Left 20 --Right 22
-call :RequireExit "Nested module invocation" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call "!Runtime!" :Object.Get "!Result!" Sum Actual
-call :RequireExit "Read nested result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Nested invocation returns 42" "!Actual!" "42"
-call "!Runtime!" :Object.Release "!Result!"
-call :RequireExit "Release nested result" "!errorlevel!" "0"
-if defined Abort goto :Summary
-
-set "ShouldNotExist="
-call "!Runtime!" :Invoke Test Add ShouldNotExist --Left 1
+call "!Runtime!" initialize runtime
 set "ActualExit=!errorlevel!"
-call :AssertEqual "Missing required parameter returns 20" "!ActualExit!" "20"
-call "!Runtime!" :Object.Get "!BRT.LastError!" Kind Actual
-call :RequireExit "Inspect missing-parameter error" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "Missing parameter error kind" "!Actual!" "MissingRequiredParameter"
-call "!Runtime!" :ClearLastError
-call :RequireExit "Clear missing-parameter error" "!errorlevel!" "0"
-if defined Abort goto :Summary
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Initialize runtime"
+if defined BT.Abort goto :Summary
 
-call "!Runtime!" :Invoke Test Add ShouldNotExist --Left banana --Right 2
+call "!Runtime!" import module MissingDependency from "!MissingDependencyModule!"
 set "ActualExit=!errorlevel!"
-call :AssertEqual "Invalid integer returns 20" "!ActualExit!" "20"
-call "!Runtime!" :ClearLastError
-call :RequireExit "Clear invalid-integer error" "!errorlevel!" "0"
-if defined Abort goto :Summary
+call "!BatchTest!" expect exit "!ActualExit!" to equal 60 because "Reject a module whose dependency is missing"
+call "!Runtime!" clear last error
 
-call "!Runtime!" :Invoke Test Add ShouldNotExist --Left 1 --Right 2 --Third 3
+call "!Runtime!" import module Test from "!TestModule!"
 set "ActualExit=!errorlevel!"
-call :AssertEqual "Unknown parameter returns 20" "!ActualExit!" "20"
-call "!Runtime!" :ClearLastError
-call :RequireExit "Clear unknown-parameter error" "!errorlevel!" "0"
-if defined Abort goto :Summary
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Import the reference module"
+if defined BT.Abort goto :Summary
 
-call "!Runtime!" :Invoke Test ChooseColor ShouldNotExist --Color Orange
+call "!Runtime!" import module Dependency from "!DependencyModule!"
 set "ActualExit=!errorlevel!"
-call :AssertEqual "Invalid enum returns 20" "!ActualExit!" "20"
-call "!Runtime!" :ClearLastError
-call :RequireExit "Clear invalid-enum error" "!errorlevel!" "0"
-if defined Abort goto :Summary
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Import a module after its dependency"
 
-call "!Runtime!" :Invoke Test PrivateFunction ShouldNotExist
+call "!Runtime!" import module BadSchema from "!BadSchemaModule!"
 set "ActualExit=!errorlevel!"
-call :AssertEqual "Private function invocation returns 30" "!ActualExit!" "30"
-call "!Runtime!" :ClearLastError
-call :RequireExit "Clear private-function error" "!errorlevel!" "0"
-if defined Abort goto :Summary
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Import the invalid-schema test module"
 
-call "!Runtime!" :Invoke Test BrokenReturn ShouldNotExist
+call "!Runtime!" import module Math from "!MathModule!"
 set "ActualExit=!errorlevel!"
-call :AssertEqual "Missing return field returns 40" "!ActualExit!" "40"
-call "!Runtime!" :ClearLastError
-call :RequireExit "Clear return-validation error" "!errorlevel!" "0"
-if defined Abort goto :Summary
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Import the reusable math module"
 
-call "!Runtime!" :GetStat FrameCount Actual
-call :RequireExit "Read final frame count" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "No frames leaked" "!Actual!" "0"
+call "!Runtime!" get statistic ModuleCount into Actual
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Read module count"
+call "!BatchTest!" expect value "!Actual!" to equal 4 because "Four modules are imported"
 
-call "!Runtime!" :GetStat ObjectCount Actual
-call :RequireExit "Read final object count" "!errorlevel!" "0"
-if defined Abort goto :Summary
-call :AssertEqual "No objects leaked" "!Actual!" "0"
+call "!Runtime!" run Test Add into Result with Left 17 and Right 25
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Run a function with readable named parameters"
+if defined BT.Abort goto :Summary
+call "!Runtime!" read field Sum from object "!Result!" into Actual
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Read a field with readable object syntax"
+call "!BatchTest!" expect value "!Actual!" to equal 42 because "Add returns 42"
+call "!Runtime!" release object "!Result!"
 
-goto :Summary
+call "!Runtime!" run Test Add into Result with Left 00017 and Right 00025
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Normalize leading zeroes"
+call "!Runtime!" read field Sum from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 42 because "Normalized integers remain numeric"
+call "!Runtime!" release object "!Result!"
 
-:RequireExit
-set /a Tests+=1
-if "%~2"=="%~3" (
-    set /a Passed+=1
-    echo [PASS] %~1
-    exit /b 0
+call "!Runtime!" run Test Clamp into Result with Value 150
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Apply default parameter values"
+call "!Runtime!" read field Value from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 100 because "Default maximum clamps to 100"
+call "!Runtime!" read field WasClamped from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 1 because "Clamp reports a changed value"
+call "!Runtime!" release object "!Result!"
+
+call "!Runtime!" run Test ChooseColor into Result with Color green and Bright true
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Run enum and Boolean parameters"
+call "!Runtime!" read field Color from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal Green because "Enum values use schema spelling"
+call "!Runtime!" read field Bright from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 1 because "Boolean values normalize to one"
+call "!Runtime!" release object "!Result!"
+
+call "!Runtime!" run Test MakePair into PairResult with Left 12 and Right 30
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Create a typed return object"
+call "!Runtime!" run Test SumPair into SumResult with Pair "!PairResult!"
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Pass a typed object as a parameter"
+call "!Runtime!" read field Sum from object "!SumResult!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 42 because "Object parameters preserve typed fields"
+
+call "!Runtime!" clone object "!PairResult!" into PairClone
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Clone an object"
+call "!Runtime!" run Test SumPair into CloneSum with Pair "!PairClone!"
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Use the cloned object"
+call "!Runtime!" read field Sum from object "!CloneSum!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 42 because "Cloned object fields match"
+call "!Runtime!" release object "!CloneSum!"
+call "!Runtime!" release object "!PairClone!"
+call "!Runtime!" release object "!SumResult!"
+call "!Runtime!" release object "!PairResult!"
+
+call "!Runtime!" run Test NestedAdd into Result with Left 20 and Right 22
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Run a successful nested invocation"
+call "!Runtime!" read field Sum from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 42 because "Nested invocation returns 42"
+call "!Runtime!" release object "!Result!"
+
+call "!Runtime!" run Test NestedFailure into ShouldNotExist
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 20 because "Propagate a nested parameter failure"
+call "!Runtime!" read field Kind from object "!BRT.LastError!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal MissingRequiredParameter because "Preserve the innermost parameter error"
+call "!Runtime!" clear last error
+
+call "!Runtime!" run Test NestedBrokenReturn into ShouldNotExist
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 40 because "Propagate a nested return validation failure"
+call "!Runtime!" read field Kind from object "!BRT.LastError!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal MissingReturnField because "Preserve the innermost return error"
+call "!Runtime!" clear last error
+
+call "!Runtime!" run Test DeepNest into Result with Depth 3
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Support more than three invocation levels"
+call "!Runtime!" read field Sum from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 2 because "Deep nesting returns the base result"
+call "!Runtime!" release object "!Result!"
+
+call "!Runtime!" set maximum call depth to 3
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Configure maximum call depth"
+call "!Runtime!" run Test DeepNest into ShouldNotExist with Depth 5
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 50 because "Reject nesting beyond the configured maximum"
+call "!Runtime!" read field Kind from object "!BRT.LastError!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal MaximumCallDepthExceeded because "Report the maximum depth failure"
+call "!Runtime!" clear last error
+call "!Runtime!" set maximum call depth to 32
+
+call "!Runtime!" run Test LeakTemporary into Result
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Run a function that leaves a nested temporary object"
+call "!Runtime!" release object "!Result!"
+call "!Runtime!" get statistic ObjectCount into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 0 because "Frame ownership releases abandoned temporary objects"
+
+call "!Runtime!" run Math FloorDivide into Result with Dividend -3 and Divisor 2
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Run mathematical floor division"
+call "!Runtime!" read field Quotient from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal -2 because "Floor division rounds toward negative infinity"
+call "!Runtime!" release object "!Result!"
+
+call "!Runtime!" run Test Add into ShouldNotExist with Left 2147483648 and Right 0
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 20 because "Reject an integer above the signed 32-bit range"
+call "!Runtime!" clear last error
+
+call "!Runtime!" run Test Add into ShouldNotExist with Left -2147483649 and Right 0
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 20 because "Reject an integer below the signed 32-bit range"
+call "!Runtime!" clear last error
+
+call "!Runtime!" run Test Add into PATH with Left 1 and Right 2
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 10 because "Reject a reserved output variable"
+call "!Runtime!" clear last error
+
+for %%F in (
+    DuplicateNames
+    DuplicatePositions
+    BadDefault
+    EmptyEnum
+    DuplicateEnum
+    UnknownProperty
+) do (
+    call "!Runtime!" run BadSchema %%F into ShouldNotExist
+    set "ActualExit=!errorlevel!"
+    call "!BatchTest!" expect exit "!ActualExit!" to equal 60 because "Reject invalid schema %%F"
+    call "!Runtime!" clear last error
 )
-set /a Failed+=1
-set "Abort=1"
-echo [FAIL] %~1 - expected exit %~3, received %~2
-call "!Runtime!" :PrintLastError
-exit /b 0
 
-:AssertEqual
-set /a Tests+=1
-if "%~2"=="%~3" (
-    set /a Passed+=1
-    echo [PASS] %~1
-    exit /b 0
+set "TextSource=%TEMP%\BatchRuntime-Readable-Source-!RANDOM!.txt"
+set "TextCopy=%TEMP%\BatchRuntime-Readable-Copy-!RANDOM!.txt"
+setlocal DisableDelayedExpansion
+> "%TextSource%" (
+    echo Percent %% and bang !
+    echo Pipe ^| ampersand ^& redirects ^< ^> caret ^^ parentheses ^( ^)
+    echo Quotes "remain data"
 )
-set /a Failed+=1
-echo [FAIL] %~1 - expected "%~3", received "%~2"
-exit /b 0
+endlocal
+
+call "!Runtime!" load text from "!TextSource!" into TextOne
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Load arbitrary text through a file-backed handle"
+call "!Runtime!" load text from "!TextSource!" into TextTwo
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Load the same text twice"
+call "!Runtime!" compare text "!TextOne!" with "!TextTwo!" into Actual
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Compare two text handles"
+call "!BatchTest!" expect value "!Actual!" to equal 1 because "Identical text handles compare equal"
+call "!Runtime!" save text "!TextOne!" to "!TextCopy!"
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Save a text handle without expanding its content"
+fc /b "!TextSource!" "!TextCopy!" >nul
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Saved arbitrary text matches the source bytes"
+call "!Runtime!" release text "!TextOne!"
+call "!Runtime!" release text "!TextTwo!"
+del /q "!TextSource!" "!TextCopy!" >nul 2>nul
+
+call "!Runtime!" show modules >nul
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "List imported modules"
+call "!Runtime!" show functions in module Test >nul
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "List module functions"
+call "!Runtime!" show schema for Test Add >nul
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Describe a function schema"
+call "!Runtime!" show runtime >nul
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Show runtime state"
+
+call "!Runtime!" get statistic FrameCount into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 0 because "No frames are leaked"
+call "!Runtime!" get statistic ObjectCount into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 0 because "No objects are leaked"
+call "!Runtime!" get statistic TextCount into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 0 because "No text handles are leaked"
 
 :Summary
-echo.
-echo =================================
-echo Tests: !Tests!
-echo Passed: !Passed!
-echo Failed: !Failed!
-if !Failed! GTR 0 (
-    echo RESULT: FAIL
-    exit /b 1
-)
-echo RESULT: PASS
-exit /b 0
+call "!BatchTest!" finish suite
+set "TestExit=!errorlevel!"
+call "!Runtime!" shutdown runtime >nul 2>nul
+exit /b !TestExit!

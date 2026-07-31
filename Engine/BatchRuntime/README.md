@@ -1,38 +1,19 @@
-# BatchRuntime Version 1
+# BatchRuntime 1.1
 
-BatchRuntime is a project-agnostic function and module runtime for Windows batch files.
-It provides:
+BatchRuntime is a project-agnostic function, object, validation, and safe-text runtime for Windows batch files.
 
-- Imported modules with explicit public exports
-- Schema-driven named and positional parameters
-- Parameter types and default values
-- Function-local parameter binding
-- Handle-based return objects
-- Typed object parameters
-- Structured error objects
-- Nested function calls
-- Runtime introspection and leak counters
-
-It does not use PowerShell or any third-party executable.
+It uses only Windows `cmd.exe` behavior and standard Windows commands. The public command language is deliberately written as readable instructions. The compact colon-prefixed commands remain available as the stable module ABI and for backward compatibility.
 
 ## Requirements
 
-- Windows `cmd.exe`
-- Command extensions enabled
-- Delayed expansion enabled in the caller
-
-Start each caller with:
+Callers enable command extensions and delayed expansion:
 
 ```bat
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 ```
 
-Version 1 intentionally supports values that are safe under delayed expansion. Arbitrary text,
-multiline strings, exclamation marks, and untrusted user input are deferred to a later text-handle
-system.
-
-## Run the self-test
+## Run the complete validation
 
 Double-click:
 
@@ -40,148 +21,86 @@ Double-click:
 RunTests.bat
 ```
 
-Or run the non-pausing test directly:
+The suite covers readable commands, module dependencies, strong schemas, named parameters, defaults, signed 32-bit integers, Booleans, enums, typed objects, cloning, nested success and failure propagation, maximum depth, frame-owned temporary cleanup, mathematical floor division, file-backed arbitrary text, introspection, and leak counters.
+
+## Readable command language
+
+Initialize and shut down:
 
 ```bat
-call Tests\BatchRuntime.Tests.bat
+call "!Runtime!" initialize runtime
+call "!Runtime!" shutdown runtime
 ```
 
-The suite exercises module import, manifests, schemas, named parameters, positional parameters,
-defaults, signed integers, Booleans, enums, return objects, object parameters, nested calls,
-structured failures, return validation, and leak detection.
-
-## Basic use
+Import a module:
 
 ```bat
-@echo off
-setlocal EnableExtensions EnableDelayedExpansion
-
-set "Runtime=%~dp0BatchRuntime.bat"
-set "MathModule=%~dp0Modules\Math.bat"
-
-call "!Runtime!" :Initialize
-if errorlevel 1 goto :Error
-
-call "!Runtime!" :Import Math "!MathModule!"
-if errorlevel 1 goto :Error
-
-call "!Runtime!" :Invoke Math Add Result --Left 17 --Right 25
-if errorlevel 1 goto :Error
-
-call "!Runtime!" :Object.Get "!Result!" Sum Sum
-if errorlevel 1 goto :Error
-
-echo Result: !Sum!
-
-call "!Runtime!" :Object.Release "!Result!"
-exit /b 0
-
-:Error
-call "!Runtime!" :PrintLastError
-exit /b 1
+call "!Runtime!" import module Math from "!MathModule!"
 ```
 
-## Runtime commands
-
-### Initialize
+Run a function:
 
 ```bat
-call "!Runtime!" :Initialize
+call "!Runtime!" run Math Add into Result with Left 17 and Right 25
+call "!Runtime!" run Math FloorDivide into Result with Dividend -3 and Divisor 2
 ```
 
-Initialization is idempotent within the current `setlocal` environment.
-
-### Import a module
+Readable calls support up to eight named parameters. Boolean values are written explicitly:
 
 ```bat
-call "!Runtime!" :Import Math "C:\Path\To\Math.bat"
+call "!Runtime!" run Display Configure into Result with Bright true
 ```
 
-The alias must be a batch-safe identifier. Modules expose a protocol manifest and an explicit
-export list. Private labels cannot be invoked through the runtime.
-
-### Invoke a function
-
-Named parameters:
+Read, check, clone, show, and release objects:
 
 ```bat
-call "!Runtime!" :Invoke Math Add Result --Left 17 --Right 25
+call "!Runtime!" read field Sum from object "!Result!" into Sum
+call "!Runtime!" check field Sum in object "!Result!" into HasSum
+call "!Runtime!" clone object "!Result!" into Copy
+call "!Runtime!" show object "!Result!"
+call "!Runtime!" release object "!Result!"
 ```
 
-Positional parameters:
+Errors:
 
 ```bat
-call "!Runtime!" :Invoke Math Add Result 17 25
+call "!Runtime!" show last error
+call "!Runtime!" clear last error
 ```
 
-Boolean switches may be bare:
+Introspection:
 
 ```bat
-call "!Runtime!" :Invoke Display Configure Result --Bright
+call "!Runtime!" show modules
+call "!Runtime!" show functions in module Math
+call "!Runtime!" show schema for Math Add
+call "!Runtime!" show runtime
+call "!Runtime!" get statistic ObjectCount into ObjectCount
 ```
 
-The third invocation argument is the variable that receives the return-object handle.
-
-### Read a return field
+Call depth:
 
 ```bat
-call "!Runtime!" :Object.Get "!Result!" Sum Sum
+call "!Runtime!" set maximum call depth to 32
 ```
 
-### Check for a field
+## Safe arbitrary text
+
+Arbitrary text is represented by file-backed handles. Its bytes are never expanded as batch commands.
 
 ```bat
-call "!Runtime!" :Object.Has "!Result!" Sum HasSum
+call "!Runtime!" load text from "C:\Input\message.txt" into Message
+call "!Runtime!" save text "!Message!" to "C:\Output\message.txt"
+call "!Runtime!" compare text "!Message!" with "!OtherMessage!" into Same
+call "!Runtime!" show text "!Message!"
+call "!Runtime!" release text "!Message!"
 ```
 
-### Describe an object
-
-```bat
-call "!Runtime!" :Object.Describe "!Result!"
-```
-
-### Release an object
-
-```bat
-call "!Runtime!" :Object.Release "!Result!"
-```
-
-Return objects are explicit resources. Release them when no longer needed.
-
-### Inspect errors
-
-A nonzero `ERRORLEVEL` is authoritative. Detailed information is stored in `BRT.LastError`.
-
-```bat
-call "!Runtime!" :PrintLastError
-```
-
-Programmatic access:
-
-```bat
-call "!Runtime!" :Object.Get "!BRT.LastError!" Kind ErrorKind
-call "!Runtime!" :Object.Get "!BRT.LastError!" Message ErrorMessage
-```
-
-Clear the error when finished:
-
-```bat
-call "!Runtime!" :ClearLastError
-```
-
-### Introspection
-
-```bat
-call "!Runtime!" :ListModules
-call "!Runtime!" :Describe Math Add
-call "!Runtime!" :RuntimeInfo
-call "!Runtime!" :GetStat ObjectCount ObjectCount
-call "!Runtime!" :GetStat FrameCount FrameCount
-```
+Text contents may contain percent signs, exclamation marks, pipes, command separators, redirects, carets, parentheses, quotes, empty lines, and multiple lines. File paths still need to be valid command-line paths.
 
 ## Module protocol
 
-A module accepts only these runtime operations:
+Modules use the compact protocol ABI:
 
 ```text
 __BRT__ MANIFEST
@@ -189,64 +108,113 @@ __BRT__ DESCRIBE FunctionName
 __BRT__ INVOKE FunctionName FrameHandle ReturnObjectHandle
 ```
 
-Every function invocation should enter its own local scope:
+Every function enters local scope before capturing its invocation handles:
 
 ```bat
 setlocal EnableExtensions EnableDelayedExpansion
+set "Frame=%~4"
+set "ReturnObject=%~5"
 ```
 
-Capture `Frame` and `ReturnObject` only after entering that local scope. This prevents a nested invocation of the same module from overwriting the outer function's handles.
-Parameters are then bound as local variables:
+Bind schema parameters:
 
 ```bat
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 ```
 
-A module writes only fields declared by its return schema. Because the function runs inside
-`setlocal`, return fields are exported on the `endlocal` line:
+Export return fields on the `endlocal` line:
 
 ```bat
-endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
+endlocal & set "BRT.O.%ReturnObject%.Value=%Value%"
 ```
 
-See `Templates\ModuleTemplate.bat` and `Modules\Math.bat`.
+## Manifest dependencies
 
-## Version 1 types
+Dependencies are aliases that must already be imported:
 
-- `Int` - signed decimal integer syntax suitable for `set /a`
-- `UInt` - non-negative decimal integer syntax
-- `Bool` - normalized to `0` or `1`
-- `Id` - begins with a letter; then letters, digits, or underscores
-- `Enum` - one value from a comma-delimited list of identifier-safe choices
-- `Object` - a live BatchRuntime object handle, optionally restricted by object type
+```bat
+set "BRT.X.Manifest.Dependency.Count=1"
+set "BRT.X.Manifest.Dependency.1=Math"
+```
 
-Optional parameters without defaults are bound to `@NULL`.
+The runtime validates dependency names, duplicates, and presence before committing an import.
+
+## Schema contract
+
+Parameter properties:
+
+```text
+Name
+Type
+Required
+Position
+HasDefault
+Default       when HasDefault is true
+Choices       only for Enum
+ObjectType    only for Object
+```
+
+Return properties:
+
+```text
+Name
+Type
+Required
+Choices       only for Enum
+ObjectType    only for Object
+```
+
+The runtime rejects unknown properties, duplicate parameter names, duplicate positions, duplicate return names, invalid defaults, empty or duplicate enum choices, reserved parameter names, and invalid object type identifiers.
+
+## Types
+
+- `Int`: normalized signed 32-bit decimal integer, `-2147483648` through `2147483647`
+- `UInt`: normalized non-negative decimal integer, `0` through `2147483647`
+- `Bool`: normalized to `0` or `1`
+- `Id`: a letter followed by letters, digits, or underscores
+- `Enum`: one identifier-safe value from a comma-delimited schema list
+- `Object`: a live object handle, optionally restricted by dotted object type
+
+## Frames and object ownership
+
+Invocation state is stored on the frame. Objects created during a frame belong to that frame unless ownership is transferred.
+
+- Successful return objects transfer to the parent frame.
+- Top-level return objects transfer to the caller.
+- Temporary nested objects are automatically released with their owning frame.
+- Handles are monotonic and are not reused during a runtime session.
+- Explicit release remains recommended for caller-owned objects.
+
+## Output variable safety
+
+Output variables must be identifiers and may not use runtime or command-environment names such as `BRT...`, `Frame`, `ReturnObject`, `PATH`, `ERRORLEVEL`, `RANDOM`, `TEMP`, or `COMSPEC`.
+
+## Nested failure propagation
+
+When a nested call fails, the outer invocation preserves the innermost structured error and propagates its exit-code family instead of replacing it with a generic module error.
 
 ## Exit-code families
 
-- `0` - success
-- `10` - invocation syntax
-- `20` - parameter validation
-- `30` - module or function failure
-- `40` - return-object validation
-- `50` - runtime state or object failure
-- `60` - module protocol or schema failure
-- `61` - delayed expansion is not enabled
-- `64` / `65` - module protocol rejection
+- `0`: success
+- `10`: readable or invocation syntax
+- `20`: parameter validation
+- `30`: module or function failure
+- `40`: return-object validation
+- `50`: runtime, object, frame, text, or depth failure
+- `60`: module protocol, dependency, or schema failure
+- `61`: delayed expansion is not enabled
+- `64` / `65`: module protocol rejection
 
-## Reserved namespace
+## Legacy compatibility
 
-All variables beginning with `BRT.` belong to the runtime. Project code should not use that
-prefix except when implementing the documented module return protocol.
+The previous commands remain valid:
 
-## Version 1 limitations
+```bat
+call "!Runtime!" :Initialize
+call "!Runtime!" :Import Math "!MathModule!"
+call "!Runtime!" :Invoke Math Add Result --Left 17 --Right 25
+call "!Runtime!" :Object.Get "!Result!" Sum Sum
+call "!Runtime!" :Object.Release "!Result!"
+```
 
-- Arbitrary user text is not safe yet.
-- Values containing `!`, `%`, command separators, or line breaks are not supported.
-- Integer syntax is validated, but arithmetic range remains the native `set /a` range.
-- Module dependencies are imported manually.
-- Asynchronous work, parallel calls, callbacks, and persistent objects are not implemented.
-- A module must obey the function `setlocal` convention for nested-call isolation.
-
-These constraints are intentional. The first version proves the calling convention and object
-model before a dedicated safe-text layer is added.
+New game and engine code should prefer the readable command language.

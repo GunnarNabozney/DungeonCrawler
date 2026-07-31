@@ -1,13 +1,18 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
+
+echo BatchRuntime 1.1 validation
+echo ===========================
+
 call "%~dp0Tests\BatchRuntime.Tests.bat"
 set "TestExit=!errorlevel!"
+
 echo.
 if "!TestExit!"=="0" (
-    echo BatchRuntime Version 1 passed its self-test.
+    echo BatchRuntime validation passed.
 ) else (
-    echo BatchRuntime Version 1 failed its self-test.
+    echo BatchRuntime validation failed with exit code !TestExit!.
 )
-echo.
-pause
+
+if /i not "%~1"=="--no-pause" pause
 exit /b !TestExit!
