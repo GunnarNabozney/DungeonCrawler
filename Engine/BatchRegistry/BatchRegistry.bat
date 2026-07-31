@@ -601,195 +601,68 @@ if /i "!BR.Internal.Normalize.RequestedType!"=="Id" (
 exit /b 1
 
 :NormalizeInt32
-set "BR.Internal.Number.Input=%~1"
-set "BR.Internal.Number.Negative=0"
-if not defined BR.Internal.Number.Input exit /b 1
-if "!BR.Internal.Number.Input:~0,1!"=="-" (
-    set "BR.Internal.Number.Negative=1"
-    set "BR.Internal.Number.Digits=!BR.Internal.Number.Input:~1!"
-) else (
-    set "BR.Internal.Number.Digits=!BR.Internal.Number.Input!"
+set "BRValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Int32 "%~1" BRValidationResult
+if errorlevel 1 (
+    set "BRValidationResult="
+    exit /b 1
 )
-if not defined BR.Internal.Number.Digits exit /b 1
-call :ValidateDigits "!BR.Internal.Number.Digits!"
-if errorlevel 1 exit /b 1
-call :StripLeadingZeroes "!BR.Internal.Number.Digits!"
-set "BR.Internal.Number.Digits=!BR.Internal.StrippedDigits!"
-if "!BR.Internal.Number.Negative!"=="1" (
-    set "BR.Internal.Number.Limit=2147483648"
-) else (
-    set "BR.Internal.Number.Limit=2147483647"
-)
-call :CheckDecimalLimit "!BR.Internal.Number.Digits!" "!BR.Internal.Number.Limit!"
-if errorlevel 1 exit /b 1
-if "!BR.Internal.Number.Digits!"=="0" (
-    set "BR.Internal.NumberNormalized=0"
-) else (
-    if "!BR.Internal.Number.Negative!"=="1" (
-        set "BR.Internal.NumberNormalized=-!BR.Internal.Number.Digits!"
-    ) else (
-        set "BR.Internal.NumberNormalized=!BR.Internal.Number.Digits!"
-    )
-)
+set "BR.Internal.NumberNormalized=!BRValidationResult!"
+set "BRValidationResult="
 exit /b 0
 
 :NormalizeUInt32
-set "BR.Internal.Number.Input=%~1"
-if not defined BR.Internal.Number.Input exit /b 1
-if "!BR.Internal.Number.Input:~0,1!"=="-" exit /b 1
-set "BR.Internal.Number.Digits=!BR.Internal.Number.Input!"
-call :ValidateDigits "!BR.Internal.Number.Digits!"
-if errorlevel 1 exit /b 1
-call :StripLeadingZeroes "!BR.Internal.Number.Digits!"
-set "BR.Internal.Number.Digits=!BR.Internal.StrippedDigits!"
-call :CheckDecimalLimit "!BR.Internal.Number.Digits!" "2147483647"
-if errorlevel 1 exit /b 1
-set "BR.Internal.NumberNormalized=!BR.Internal.Number.Digits!"
+set "BRValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :UInt32 "%~1" BRValidationResult
+if errorlevel 1 (
+    set "BRValidationResult="
+    exit /b 1
+)
+set "BR.Internal.NumberNormalized=!BRValidationResult!"
+set "BRValidationResult="
 exit /b 0
 
 :NormalizeBool
-set "BR.Internal.Bool.Input=%~1"
-if /i "!BR.Internal.Bool.Input!"=="1" (
-    set "BR.Internal.BoolNormalized=1"
-    exit /b 0
+set "BRValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Boolean "%~1" BRValidationResult
+if errorlevel 1 (
+    set "BRValidationResult="
+    exit /b 1
 )
-if /i "!BR.Internal.Bool.Input!"=="true" (
-    set "BR.Internal.BoolNormalized=1"
-    exit /b 0
-)
-if /i "!BR.Internal.Bool.Input!"=="yes" (
-    set "BR.Internal.BoolNormalized=1"
-    exit /b 0
-)
-if /i "!BR.Internal.Bool.Input!"=="on" (
-    set "BR.Internal.BoolNormalized=1"
-    exit /b 0
-)
-if /i "!BR.Internal.Bool.Input!"=="0" (
-    set "BR.Internal.BoolNormalized=0"
-    exit /b 0
-)
-if /i "!BR.Internal.Bool.Input!"=="false" (
-    set "BR.Internal.BoolNormalized=0"
-    exit /b 0
-)
-if /i "!BR.Internal.Bool.Input!"=="no" (
-    set "BR.Internal.BoolNormalized=0"
-    exit /b 0
-)
-if /i "!BR.Internal.Bool.Input!"=="off" (
-    set "BR.Internal.BoolNormalized=0"
-    exit /b 0
-)
-exit /b 1
-
-:ValidateDigits
-set "BR.Internal.Digits.Work=%~1"
-if not defined BR.Internal.Digits.Work exit /b 1
-:ValidateDigits.Next
-if not defined BR.Internal.Digits.Work exit /b 0
-set "BR.Internal.Digits.Character=!BR.Internal.Digits.Work:~0,1!"
-call :ValidateDigitCharacter "!BR.Internal.Digits.Character!"
-if errorlevel 1 exit /b 1
-set "BR.Internal.Digits.Work=!BR.Internal.Digits.Work:~1!"
-goto :ValidateDigits.Next
-
-:StripLeadingZeroes
-set "BR.Internal.Strip.Work=%~1"
-:StripLeadingZeroes.Next
-if "!BR.Internal.Strip.Work!"=="0" goto :StripLeadingZeroes.Done
-if not "!BR.Internal.Strip.Work:~0,1!"=="0" goto :StripLeadingZeroes.Done
-set "BR.Internal.Strip.Work=!BR.Internal.Strip.Work:~1!"
-goto :StripLeadingZeroes.Next
-:StripLeadingZeroes.Done
-set "BR.Internal.StrippedDigits=!BR.Internal.Strip.Work!"
+set "BR.Internal.BoolNormalized=!BRValidationResult!"
+set "BRValidationResult="
 exit /b 0
-
-:CheckDecimalLimit
-set "BR.Internal.Limit.Value=%~1"
-set "BR.Internal.Limit.Maximum=%~2"
-set "BR.Internal.Limit.Work=!BR.Internal.Limit.Value!"
-set "BR.Internal.Limit.Length=0"
-:CheckDecimalLimit.Length
-if not defined BR.Internal.Limit.Work goto :CheckDecimalLimit.LengthDone
-set /a BR.Internal.Limit.Length+=1
-set "BR.Internal.Limit.Work=!BR.Internal.Limit.Work:~1!"
-goto :CheckDecimalLimit.Length
-:CheckDecimalLimit.LengthDone
-if !BR.Internal.Limit.Length! LSS 10 exit /b 0
-if !BR.Internal.Limit.Length! GTR 10 exit /b 1
-set "BR.Internal.Limit.Work=!BR.Internal.Limit.Value!"
-set "BR.Internal.Limit.MaxWork=!BR.Internal.Limit.Maximum!"
-:CheckDecimalLimit.Compare
-if not defined BR.Internal.Limit.Work exit /b 0
-set "BR.Internal.Limit.Digit=!BR.Internal.Limit.Work:~0,1!"
-set "BR.Internal.Limit.MaxDigit=!BR.Internal.Limit.MaxWork:~0,1!"
-if !BR.Internal.Limit.Digit! LSS !BR.Internal.Limit.MaxDigit! exit /b 0
-if !BR.Internal.Limit.Digit! GTR !BR.Internal.Limit.MaxDigit! exit /b 1
-set "BR.Internal.Limit.Work=!BR.Internal.Limit.Work:~1!"
-set "BR.Internal.Limit.MaxWork=!BR.Internal.Limit.MaxWork:~1!"
-goto :CheckDecimalLimit.Compare
 
 :ValidateKey
-set "BR.Internal.Key.Value=%~1"
-if not defined BR.Internal.Key.Value exit /b 1
-if not "!BR.Internal.Key.Value:~128,1!"=="" exit /b 1
-if "!BR.Internal.Key.Value:~0,1!"=="." exit /b 1
-if "!BR.Internal.Key.Value:~-1!"=="." exit /b 1
-if not "!BR.Internal.Key.Value:..=!"=="!BR.Internal.Key.Value!" exit /b 1
-set "BR.Internal.Key.Work=!BR.Internal.Key.Value!"
-:ValidateKey.Next
-set "BR.Internal.Key.Segment="
-set "BR.Internal.Key.Rest="
-for /f "tokens=1,* delims=." %%A in ("!BR.Internal.Key.Work!") do (
-    set "BR.Internal.Key.Segment=%%~A"
-    set "BR.Internal.Key.Rest=%%~B"
+set "BRValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :DottedIdentifier "%~1" BRValidationResult
+if errorlevel 1 (
+    set "BRValidationResult="
+    exit /b 1
 )
-if not defined BR.Internal.Key.Segment exit /b 1
-call :ValidateId "!BR.Internal.Key.Segment!"
-if errorlevel 1 exit /b 1
-if not defined BR.Internal.Key.Rest exit /b 0
-set "BR.Internal.Key.Work=!BR.Internal.Key.Rest!"
-goto :ValidateKey.Next
-
-:ValidateId
-set "BR.Internal.Id.Value=%~1"
-if not defined BR.Internal.Id.Value exit /b 1
-if not "!BR.Internal.Id.Value:~64,1!"=="" exit /b 1
-set "BR.Internal.Id.Character=!BR.Internal.Id.Value:~0,1!"
-call :ValidateAlphaCharacter "!BR.Internal.Id.Character!"
-if errorlevel 1 exit /b 1
-set "BR.Internal.Id.Work=!BR.Internal.Id.Value:~1!"
-:ValidateId.Next
-if not defined BR.Internal.Id.Work exit /b 0
-set "BR.Internal.Id.Character=!BR.Internal.Id.Work:~0,1!"
-call :ValidateAlphaCharacter "!BR.Internal.Id.Character!"
-if not errorlevel 1 goto :ValidateId.Advance
-call :ValidateDigitCharacter "!BR.Internal.Id.Character!"
-if not errorlevel 1 goto :ValidateId.Advance
-if "!BR.Internal.Id.Character!"=="_" goto :ValidateId.Advance
-exit /b 1
-:ValidateId.Advance
-set "BR.Internal.Id.Work=!BR.Internal.Id.Work:~1!"
-goto :ValidateId.Next
-
-:ValidateAlphaCharacter
-set "BR.Internal.Character=%~1"
-for /f "delims=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" %%A in ("!BR.Internal.Character!") do exit /b 1
+set "BRValidationResult="
 exit /b 0
 
-:ValidateDigitCharacter
-set "BR.Internal.Character=%~1"
-for /f "delims=0123456789" %%A in ("!BR.Internal.Character!") do exit /b 1
+:ValidateId
+set "BRValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Identifier "%~1" BRValidationResult
+if errorlevel 1 (
+    set "BRValidationResult="
+    exit /b 1
+)
+set "BRValidationResult="
 exit /b 0
 
 :ValidateOutputVariable
-set "BR.Internal.Output.Value=%~1"
-call :ValidateId "!BR.Internal.Output.Value!"
-if errorlevel 1 exit /b 1
-if /i "!BR.Internal.Output.Value:~0,3!"=="BR." exit /b 1
-for %%V in (PATH ERRORLEVEL RANDOM TEMP TMP COMSPEC CD CMDEXTVERSION DATE TIME) do if /i "!BR.Internal.Output.Value!"=="%%V" exit /b 1
+set "BRValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Apply "%~1" "Identifier+Not=PATH,ERRORLEVEL,RANDOM,TEMP,TMP,COMSPEC,CD,CMDEXTVERSION,CMDCMDLINE,DATE,TIME,PATHEXT,Frame,ReturnObject+NotPrefix=BRT,BV" BRValidationResult
+if errorlevel 1 (
+    set "BRValidationResult="
+    exit /b 1
+)
+set "BRValidationResult="
 exit /b 0
+
 
 :ValidateErrorField
 for %%F in (Code Kind Message Registry Key Type Expected Actual) do if /i "%~1"=="%%F" exit /b 0

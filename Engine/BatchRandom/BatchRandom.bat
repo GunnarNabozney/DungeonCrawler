@@ -609,138 +609,47 @@ call :SetError 50 RandomNotInitialized "BatchRandom has not been initialized." "
 exit /b 50
 
 :NormalizeUInt32
-set "BRNG.Internal.UInt.Input=%~1"
-if not defined BRNG.Internal.UInt.Input exit /b 1
-call :ValidateDigits "!BRNG.Internal.UInt.Input!"
-if errorlevel 1 exit /b 1
-call :StripLeadingZeroes "!BRNG.Internal.UInt.Input!"
-set "BRNG.Internal.UInt.Digits=!BRNG.Internal.StrippedDigits!"
-call :CheckDecimalLimit "!BRNG.Internal.UInt.Digits!" 2147483647
-if errorlevel 1 exit /b 1
-set "BRNG.Internal.UIntNormalized=!BRNG.Internal.UInt.Digits!"
+set "BRNGValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :UInt32 "%~1" BRNGValidationResult
+if errorlevel 1 (
+    set "BRNGValidationResult="
+    exit /b 1
+)
+set "BRNG.Internal.UIntNormalized=!BRNGValidationResult!"
+set "BRNGValidationResult="
 exit /b 0
 
 :NormalizeInt32
-set "BRNG.Internal.Int.Input=%~1"
-set "BRNG.Internal.Int.Negative=0"
-if not defined BRNG.Internal.Int.Input exit /b 1
-if "!BRNG.Internal.Int.Input:~0,1!"=="-" (
-    set "BRNG.Internal.Int.Negative=1"
-    set "BRNG.Internal.Int.Digits=!BRNG.Internal.Int.Input:~1!"
-) else (
-    set "BRNG.Internal.Int.Digits=!BRNG.Internal.Int.Input!"
+set "BRNGValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Int32 "%~1" BRNGValidationResult
+if errorlevel 1 (
+    set "BRNGValidationResult="
+    exit /b 1
 )
-if not defined BRNG.Internal.Int.Digits exit /b 1
-call :ValidateDigits "!BRNG.Internal.Int.Digits!"
-if errorlevel 1 exit /b 1
-call :StripLeadingZeroes "!BRNG.Internal.Int.Digits!"
-set "BRNG.Internal.Int.Digits=!BRNG.Internal.StrippedDigits!"
-if "!BRNG.Internal.Int.Negative!"=="1" (
-    set "BRNG.Internal.Int.Limit=2147483648"
-) else (
-    set "BRNG.Internal.Int.Limit=2147483647"
-)
-call :CheckDecimalLimit "!BRNG.Internal.Int.Digits!" "!BRNG.Internal.Int.Limit!"
-if errorlevel 1 exit /b 1
-if "!BRNG.Internal.Int.Digits!"=="0" (
-    set "BRNG.Internal.IntNormalized=0"
-) else (
-    if "!BRNG.Internal.Int.Negative!"=="1" (
-        set "BRNG.Internal.IntNormalized=-!BRNG.Internal.Int.Digits!"
-    ) else (
-        set "BRNG.Internal.IntNormalized=!BRNG.Internal.Int.Digits!"
-    )
-)
+set "BRNG.Internal.IntNormalized=!BRNGValidationResult!"
+set "BRNGValidationResult="
 exit /b 0
-
-:ValidateDigits
-set "BRNG.Internal.Digits.Work=%~1"
-if not defined BRNG.Internal.Digits.Work exit /b 1
-:ValidateDigits.Next
-if not defined BRNG.Internal.Digits.Work exit /b 0
-set "BRNG.Internal.Digits.Character=!BRNG.Internal.Digits.Work:~0,1!"
-call :ValidateDigitCharacter "!BRNG.Internal.Digits.Character!"
-if errorlevel 1 exit /b 1
-set "BRNG.Internal.Digits.Work=!BRNG.Internal.Digits.Work:~1!"
-goto :ValidateDigits.Next
-
-:StripLeadingZeroes
-set "BRNG.Internal.Strip.Work=%~1"
-:StripLeadingZeroes.Next
-if "!BRNG.Internal.Strip.Work!"=="0" goto :StripLeadingZeroes.Done
-if not "!BRNG.Internal.Strip.Work:~0,1!"=="0" goto :StripLeadingZeroes.Done
-set "BRNG.Internal.Strip.Work=!BRNG.Internal.Strip.Work:~1!"
-goto :StripLeadingZeroes.Next
-:StripLeadingZeroes.Done
-set "BRNG.Internal.StrippedDigits=!BRNG.Internal.Strip.Work!"
-exit /b 0
-
-:CheckDecimalLimit
-set "BRNG.Internal.Limit.Value=%~1"
-set "BRNG.Internal.Limit.Maximum=%~2"
-set "BRNG.Internal.Limit.Work=!BRNG.Internal.Limit.Value!"
-set "BRNG.Internal.Limit.Length=0"
-:CheckDecimalLimit.Length
-if not defined BRNG.Internal.Limit.Work goto :CheckDecimalLimit.LengthDone
-set /a BRNG.Internal.Limit.Length+=1
-set "BRNG.Internal.Limit.Work=!BRNG.Internal.Limit.Work:~1!"
-goto :CheckDecimalLimit.Length
-:CheckDecimalLimit.LengthDone
-if !BRNG.Internal.Limit.Length! LSS 10 exit /b 0
-if !BRNG.Internal.Limit.Length! GTR 10 exit /b 1
-set "BRNG.Internal.Limit.Work=!BRNG.Internal.Limit.Value!"
-set "BRNG.Internal.Limit.MaxWork=!BRNG.Internal.Limit.Maximum!"
-:CheckDecimalLimit.Compare
-if not defined BRNG.Internal.Limit.Work exit /b 0
-set "BRNG.Internal.Limit.Digit=!BRNG.Internal.Limit.Work:~0,1!"
-set "BRNG.Internal.Limit.MaxDigit=!BRNG.Internal.Limit.MaxWork:~0,1!"
-if !BRNG.Internal.Limit.Digit! LSS !BRNG.Internal.Limit.MaxDigit! exit /b 0
-if !BRNG.Internal.Limit.Digit! GTR !BRNG.Internal.Limit.MaxDigit! exit /b 1
-set "BRNG.Internal.Limit.Work=!BRNG.Internal.Limit.Work:~1!"
-set "BRNG.Internal.Limit.MaxWork=!BRNG.Internal.Limit.MaxWork:~1!"
-goto :CheckDecimalLimit.Compare
 
 :ValidateOutputVariable
-set "BRNG.Internal.Output.Value=%~1"
-call :ValidateId "!BRNG.Internal.Output.Value!"
-if errorlevel 1 exit /b 1
-if /i "!BRNG.Internal.Output.Value:~0,5!"=="BRNG." exit /b 1
-if /i "!BRNG.Internal.Output.Value:~0,3!"=="BM." exit /b 1
-if /i "!BRNG.Internal.Output.Value:~0,3!"=="BR." exit /b 1
-if /i "!BRNG.Internal.Output.Value:~0,4!"=="BRT." exit /b 1
-for %%V in (PATH ERRORLEVEL RANDOM TEMP TMP COMSPEC CD CMDEXTVERSION DATE TIME Frame ReturnObject) do if /i "!BRNG.Internal.Output.Value!"=="%%V" exit /b 1
+set "BRNGValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Apply "%~1" "Identifier+Not=PATH,ERRORLEVEL,RANDOM,TEMP,TMP,COMSPEC,CD,CMDEXTVERSION,CMDCMDLINE,DATE,TIME,PATHEXT,Frame,ReturnObject+NotPrefix=BRT,BV" BRNGValidationResult
+if errorlevel 1 (
+    set "BRNGValidationResult="
+    exit /b 1
+)
+set "BRNGValidationResult="
 exit /b 0
 
 :ValidateId
-set "BRNG.Internal.Id.Value=%~1"
-if not defined BRNG.Internal.Id.Value exit /b 1
-if not "!BRNG.Internal.Id.Value:~64,1!"=="" exit /b 1
-set "BRNG.Internal.Id.Character=!BRNG.Internal.Id.Value:~0,1!"
-call :ValidateAlphaCharacter "!BRNG.Internal.Id.Character!"
-if errorlevel 1 exit /b 1
-set "BRNG.Internal.Id.Work=!BRNG.Internal.Id.Value:~1!"
-:ValidateId.Next
-if not defined BRNG.Internal.Id.Work exit /b 0
-set "BRNG.Internal.Id.Character=!BRNG.Internal.Id.Work:~0,1!"
-call :ValidateAlphaCharacter "!BRNG.Internal.Id.Character!"
-if not errorlevel 1 goto :ValidateId.Advance
-call :ValidateDigitCharacter "!BRNG.Internal.Id.Character!"
-if not errorlevel 1 goto :ValidateId.Advance
-if "!BRNG.Internal.Id.Character!"=="_" goto :ValidateId.Advance
-exit /b 1
-:ValidateId.Advance
-set "BRNG.Internal.Id.Work=!BRNG.Internal.Id.Work:~1!"
-goto :ValidateId.Next
-
-:ValidateAlphaCharacter
-set "BRNG.Internal.Character=%~1"
-for /f "delims=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" %%A in ("!BRNG.Internal.Character!") do exit /b 1
+set "BRNGValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Identifier "%~1" BRNGValidationResult
+if errorlevel 1 (
+    set "BRNGValidationResult="
+    exit /b 1
+)
+set "BRNGValidationResult="
 exit /b 0
 
-:ValidateDigitCharacter
-set "BRNG.Internal.Character=%~1"
-for /f "delims=0123456789" %%A in ("!BRNG.Internal.Character!") do exit /b 1
-exit /b 0
 
 :ValidateErrorField
 for %%F in (Code Kind Message Operation Parameter Expected Actual) do if /i "%~1"=="%%F" exit /b 0

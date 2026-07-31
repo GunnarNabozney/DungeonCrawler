@@ -1596,118 +1596,61 @@ for /f "tokens=1 delims==" %%V in ('set %~1 2^>nul') do set "%%V="
 exit /b 0
 
 :ValidateTypeName
-if /i "%~1"=="Int" exit /b 0
-if /i "%~1"=="UInt" exit /b 0
-if /i "%~1"=="Bool" exit /b 0
-if /i "%~1"=="Id" exit /b 0
-if /i "%~1"=="Enum" exit /b 0
-if /i "%~1"=="Object" exit /b 0
-exit /b 1
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :SchemaType "%~1" BRTValidationResult
+if errorlevel 1 exit /b 1
+set "BRTValidationResult="
+exit /b 0
 
 :ValidateOutputVariable
-call :ValidateId "%~1"
-if errorlevel 1 exit /b 1
-if /i "%~1"=="Frame" exit /b 1
-if /i "%~1"=="ReturnObject" exit /b 1
-if /i "%~1"=="ERRORLEVEL" exit /b 1
-if /i "%~1"=="CD" exit /b 1
-if /i "%~1"=="DATE" exit /b 1
-if /i "%~1"=="TIME" exit /b 1
-if /i "%~1"=="RANDOM" exit /b 1
-if /i "%~1"=="CMDCMDLINE" exit /b 1
-if /i "%~1"=="CMDEXTVERSION" exit /b 1
-if /i "%~1"=="PATH" exit /b 1
-if /i "%~1"=="PATHEXT" exit /b 1
-if /i "%~1"=="COMSPEC" exit /b 1
-if /i "%~1"=="TEMP" exit /b 1
-if /i "%~1"=="TMP" exit /b 1
-set "BRT.Internal.Test=%~1"
-if /i "!BRT.Internal.Test:~0,3!"=="BRT" exit /b 1
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Apply "%~1" "Identifier+Not=Frame,ReturnObject,ERRORLEVEL,CD,DATE,TIME,RANDOM,CMDCMDLINE,CMDEXTVERSION,PATH,PATHEXT,COMSPEC,TEMP,TMP+NotPrefix=BRT,BV" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRTValidationResult="
 exit /b 0
 
 :ValidateParameterName
-call :ValidateId "%~1"
-if errorlevel 1 exit /b 1
-if /i "%~1"=="Frame" exit /b 1
-if /i "%~1"=="ReturnObject" exit /b 1
-set "BRT.Internal.Test=%~1"
-if /i "!BRT.Internal.Test:~0,3!"=="BRT" exit /b 1
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Apply "%~1" "Identifier+Not=Frame,ReturnObject+NotPrefix=BRT,BV" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRTValidationResult="
 exit /b 0
 
 :ValidateId
-set "BRT.Internal.Test=%~1"
-if not defined BRT.Internal.Test exit /b 1
-set "BRT.Internal.Character=!BRT.Internal.Test:~0,1!"
-call :ValidateAlphaCharacter "!BRT.Internal.Character!"
-if errorlevel 1 exit /b 1
-set "BRT.Internal.Work=!BRT.Internal.Test!"
-:ValidateId.NextCharacter
-if not defined BRT.Internal.Work exit /b 0
-set "BRT.Internal.Character=!BRT.Internal.Work:~0,1!"
-call :ValidateAlphaCharacter "!BRT.Internal.Character!"
-if not errorlevel 1 goto :ValidateId.Advance
-call :ValidateDigitCharacter "!BRT.Internal.Character!"
-if not errorlevel 1 goto :ValidateId.Advance
-if "!BRT.Internal.Character!"=="_" goto :ValidateId.Advance
-exit /b 1
-:ValidateId.Advance
-set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
-goto :ValidateId.NextCharacter
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Identifier "%~1" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRTValidationResult="
+exit /b 0
 
 :ValidateTypeId
-set "BRT.Internal.Work=%~1"
-if not defined BRT.Internal.Work exit /b 1
-if "!BRT.Internal.Work:~0,1!"=="." exit /b 1
-if "!BRT.Internal.Work:~-1!"=="." exit /b 1
-if not "!BRT.Internal.Work:..=!"=="!BRT.Internal.Work!" exit /b 1
-:ValidateTypeId.Next
-set "BRT.Internal.Segment="
-set "BRT.Internal.Rest="
-for /f "tokens=1,* delims=." %%A in ("!BRT.Internal.Work!") do (
-    set "BRT.Internal.Segment=%%~A"
-    set "BRT.Internal.Rest=%%~B"
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :TypeId "%~1" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
 )
-call :ValidateId "!BRT.Internal.Segment!"
-if errorlevel 1 exit /b 1
-if not defined BRT.Internal.Rest exit /b 0
-set "BRT.Internal.Work=!BRT.Internal.Rest!"
-goto :ValidateTypeId.Next
+set "BRTValidationResult="
+exit /b 0
 
 :ValidateEnumChoices
-set "BRT.Internal.EnumRemaining=%~1"
-if not defined BRT.Internal.EnumRemaining exit /b 1
-if "!BRT.Internal.EnumRemaining:~0,1!"=="," exit /b 1
-if "!BRT.Internal.EnumRemaining:~-1!"=="," exit /b 1
-if not "!BRT.Internal.EnumRemaining:,,=!"=="!BRT.Internal.EnumRemaining!" exit /b 1
-set "BRT.Internal.EnumCount=0"
-:ValidateEnumChoices.Next
-set "BRT.Internal.EnumChoice="
-set "BRT.Internal.EnumRest="
-for /f "tokens=1,* delims=," %%A in ("!BRT.Internal.EnumRemaining!") do (
-    set "BRT.Internal.EnumChoice=%%~A"
-    set "BRT.Internal.EnumRest=%%~B"
-)
-call :ValidateId "!BRT.Internal.EnumChoice!"
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :EnumChoices "%~1" BRTValidationResult
 if errorlevel 1 (
-    call :ClearPrefix "BRT.Internal.EnumStored."
+    set "BRTValidationResult="
     exit /b 1
 )
-set "BRT.Internal.EnumDuplicate="
-for /l %%I in (1,1,!BRT.Internal.EnumCount!) do (
-    if /i "!BRT.Internal.EnumStored.%%I!"=="!BRT.Internal.EnumChoice!" set "BRT.Internal.EnumDuplicate=1"
-)
-if defined BRT.Internal.EnumDuplicate (
-    call :ClearPrefix "BRT.Internal.EnumStored."
-    exit /b 1
-)
-set /a BRT.Internal.EnumCount+=1
-set "BRT.Internal.EnumStored.!BRT.Internal.EnumCount!=!BRT.Internal.EnumChoice!"
-if not defined BRT.Internal.EnumRest (
-    call :ClearPrefix "BRT.Internal.EnumStored."
-    exit /b 0
-)
-set "BRT.Internal.EnumRemaining=!BRT.Internal.EnumRest!"
-goto :ValidateEnumChoices.Next
+set "BRTValidationResult="
+exit /b 0
 
 :ValidateInt
 call :NormalizeInt32 "%~1"
@@ -1718,129 +1661,64 @@ call :NormalizeUInt32 "%~1"
 exit /b !errorlevel!
 
 :NormalizeInt32
-set "BRT.Internal.Number=%~1"
-set "BRT.Internal.Negative=0"
-if not defined BRT.Internal.Number exit /b 1
-if "!BRT.Internal.Number:~0,1!"=="-" (
-    set "BRT.Internal.Negative=1"
-    set "BRT.Internal.Number=!BRT.Internal.Number:~1!"
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Int32 "%~1" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
 )
-if not defined BRT.Internal.Number exit /b 1
-call :ValidateDigits "!BRT.Internal.Number!"
-if errorlevel 1 exit /b 1
-call :StripLeadingZeros "!BRT.Internal.Number!"
-set "BRT.Internal.Number=!BRT.Internal.Stripped!"
-if "!BRT.Internal.Negative!"=="1" (
-    call :DecimalWithinLimit "!BRT.Internal.Number!" "2147483648"
-    if errorlevel 1 exit /b 1
-    if "!BRT.Internal.Number!"=="0" (
-        set "BRT.Internal.Normalized=0"
-    ) else (
-        set "BRT.Internal.Normalized=-!BRT.Internal.Number!"
-    )
-    exit /b 0
-)
-call :DecimalWithinLimit "!BRT.Internal.Number!" "2147483647"
-if errorlevel 1 exit /b 1
-set "BRT.Internal.Normalized=!BRT.Internal.Number!"
+set "BRT.Internal.Normalized=!BRTValidationResult!"
+set "BRTValidationResult="
 exit /b 0
 
 :NormalizeUInt32
-set "BRT.Internal.Number=%~1"
-if not defined BRT.Internal.Number exit /b 1
-call :ValidateDigits "!BRT.Internal.Number!"
-if errorlevel 1 exit /b 1
-call :StripLeadingZeros "!BRT.Internal.Number!"
-set "BRT.Internal.Number=!BRT.Internal.Stripped!"
-call :DecimalWithinLimit "!BRT.Internal.Number!" "2147483647"
-if errorlevel 1 exit /b 1
-set "BRT.Internal.Normalized=!BRT.Internal.Number!"
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :UInt32 "%~1" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRT.Internal.Normalized=!BRTValidationResult!"
+set "BRTValidationResult="
 exit /b 0
-
-:ValidateDigits
-set "BRT.Internal.Work=%~1"
-if not defined BRT.Internal.Work exit /b 1
-:ValidateDigits.Next
-if not defined BRT.Internal.Work exit /b 0
-set "BRT.Internal.Character=!BRT.Internal.Work:~0,1!"
-call :ValidateDigitCharacter "!BRT.Internal.Character!"
-if errorlevel 1 exit /b 1
-set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
-goto :ValidateDigits.Next
-
-:StripLeadingZeros
-set "BRT.Internal.Stripped=%~1"
-:StripLeadingZeros.Next
-if not "!BRT.Internal.Stripped:~0,1!"=="0" exit /b 0
-if "!BRT.Internal.Stripped:~1,1!"=="" exit /b 0
-set "BRT.Internal.Stripped=!BRT.Internal.Stripped:~1!"
-goto :StripLeadingZeros.Next
-
-:DecimalWithinLimit
-set "BRT.Internal.Number=%~1"
-set "BRT.Internal.Limit=%~2"
-set "BRT.Internal.Work=!BRT.Internal.Number!"
-set "BRT.Internal.Length=0"
-:DecimalWithinLimit.Length
-if not defined BRT.Internal.Work goto :DecimalWithinLimit.CompareLength
-set /a BRT.Internal.Length+=1
-set "BRT.Internal.Work=!BRT.Internal.Work:~1!"
-goto :DecimalWithinLimit.Length
-:DecimalWithinLimit.CompareLength
-if !BRT.Internal.Length! LSS 10 exit /b 0
-if !BRT.Internal.Length! GTR 10 exit /b 1
-set "BRT.Internal.DecimalIndex=0"
-:DecimalWithinLimit.Digit
-if !BRT.Internal.DecimalIndex! GEQ 10 exit /b 0
-set "BRT.Internal.LeftDigit=!BRT.Internal.Number:~%BRT.Internal.DecimalIndex%,1!"
-set "BRT.Internal.RightDigit=!BRT.Internal.Limit:~%BRT.Internal.DecimalIndex%,1!"
-if !BRT.Internal.LeftDigit! LSS !BRT.Internal.RightDigit! exit /b 0
-if !BRT.Internal.LeftDigit! GTR !BRT.Internal.RightDigit! exit /b 1
-set /a BRT.Internal.DecimalIndex+=1
-goto :DecimalWithinLimit.Digit
-
-:ValidateAlphaCharacter
-for %%C in (
-    A B C D E F G H I J K L M
-    N O P Q R S T U V W X Y Z
-) do (
-    if /i "%~1"=="%%C" exit /b 0
-)
-exit /b 1
-
-:ValidateDigitCharacter
-for %%C in (0 1 2 3 4 5 6 7 8 9) do (
-    if "%~1"=="%%C" exit /b 0
-)
-exit /b 1
 
 :ValidateBool
 call :NormalizeBool "%~1"
 exit /b !errorlevel!
 
 :NormalizeBool
-set "BRT.Internal.Bool="
-if /i "%~1"=="1" set "BRT.Internal.Bool=1"
-if /i "%~1"=="true" set "BRT.Internal.Bool=1"
-if /i "%~1"=="yes" set "BRT.Internal.Bool=1"
-if /i "%~1"=="on" set "BRT.Internal.Bool=1"
-if /i "%~1"=="0" set "BRT.Internal.Bool=0"
-if /i "%~1"=="false" set "BRT.Internal.Bool=0"
-if /i "%~1"=="no" set "BRT.Internal.Bool=0"
-if /i "%~1"=="off" set "BRT.Internal.Bool=0"
-if not defined BRT.Internal.Bool exit /b 1
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Boolean "%~1" BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRT.Internal.Bool=!BRTValidationResult!"
+set "BRTValidationResult="
 exit /b 0
 
 :ValidateObjectHandle
 set "BRT.Internal.Object=%~1"
-if not defined BRT.Internal.Object exit /b 1
-if /i not "!BRT.Internal.Object:~0,1!"=="O" exit /b 1
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Handle "!BRT.Internal.Object!" O 6 BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRT.Internal.Object=!BRTValidationResult!"
+set "BRTValidationResult="
 if not "!BRT.O.%BRT.Internal.Object%.__Exists!"=="1" exit /b 1
 exit /b 0
 
 :ValidateTextHandle
 set "BRT.Internal.Text.Handle=%~1"
-if not defined BRT.Internal.Text.Handle exit /b 1
-if /i not "!BRT.Internal.Text.Handle:~0,1!"=="T" exit /b 1
+set "BRTValidationResult="
+call "%~dp0..\BatchValidate\BatchValidate.bat" :Handle "!BRT.Internal.Text.Handle!" T 6 BRTValidationResult
+if errorlevel 1 (
+    set "BRTValidationResult="
+    exit /b 1
+)
+set "BRT.Internal.Text.Handle=!BRTValidationResult!"
+set "BRTValidationResult="
 if not "!BRT.T.%BRT.Internal.Text.Handle%.__Exists!"=="1" exit /b 1
 exit /b 0
