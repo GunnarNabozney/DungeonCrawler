@@ -1,0 +1,2 @@
+# Windows command scripts require CRLF for reliable cmd.exe label scanning.
+*.bat text eol=crlf
