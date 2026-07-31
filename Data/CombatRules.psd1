@@ -153,8 +153,196 @@
         DifferenceDivisor = 2
         MinimumChance = 10
         MaximumChance = 95
+        Rounding = 'FloorBeforeClamp'
         AttackerSkill = 'WeaponSkill'
         DefenderSkill = 'Defense'
+    }
+
+    PhysicalDamage = @{
+        Types = @(
+            'Blunt'
+            'Slicing'
+            'Stabbing'
+        )
+
+        GenericPhysicalTypeAllowed = $false
+        AutomaticStatusEffects = $false
+        MatchingArmorProfileRequired = $true
+    }
+
+    DamagePayload = @{
+        OnePayloadPerHit = $true
+        ContainsResolvedRawDamage = $true
+        ContainsDamageFormula = $false
+
+        RequiredFields = @(
+            'SourceCombatantId'
+            'TargetCombatantId'
+            'TargetBodyLocation'
+            'SourceKind'
+            'SourceId'
+            'HitNumber'
+            'HitCount'
+            'DamageComponents'
+            'AttachedEffects'
+        )
+
+        DamageComponentFields = @(
+            'DamageType'
+            'RawAmount'
+        )
+
+        SourceKinds = @(
+            'Attack'
+            'Ability'
+        )
+    }
+
+    DamageResult = @{
+        PreservePerComponentResults = $true
+
+        RequiredFields = @(
+            'RawDamage'
+            'DamageType'
+            'ArmorValue'
+            'MitigationPercent'
+            'PreventedDamage'
+            'FinalDamage'
+            'HealthBefore'
+            'HealthAfter'
+            'TargetDefeated'
+        )
+    }
+
+    Attack = @{
+        Targeting = @{
+            BodyLocationRequired = $true
+            BodyLocations = @(
+                'Head'
+                'Chest'
+                'Left Arm'
+                'Right Arm'
+                'Left Leg'
+                'Right Leg'
+            )
+
+            MultiHitKeepsSelectedLocation = $true
+        }
+
+        RawDamage = @{
+            WeaponSubtotalComponents = @(
+                'WeaponBaseDamage'
+                'CurrentEffectiveAssociatedAttribute'
+            )
+
+            AttributeContributionRatio = 1
+            WeaponSkillContributesByDefault = $false
+
+            PerkContribution = @{
+                PercentageOnly = $true
+                StoredAsWholeNumber = $true
+                Combination = 'Add'
+                AppliedTo = 'WeaponSubtotal'
+                AppliedOncePerAttack = $true
+                Rounding = 'Floor'
+            }
+        }
+
+        MultiHit = @{
+            MechanicalProperty = 'HitsPerAttack'
+            PropertyOwner = 'WeaponType'
+            IndividualWeaponOverrideAllowed = $true
+            MinimumHits = 1
+            MaximumHits = 3
+
+            SpeedLabels = @{
+                '1' = 'Slow'
+                '2' = 'Normal'
+                '3' = 'Fast'
+            }
+
+            TotalRawDamageCalculatedOnce = $true
+            AttributeAppliedOncePerAttack = $true
+            PerksAppliedOncePerAttack = $true
+            Division = 'EvenWithEarliestRemainder'
+            FailedHitDamageRedistributed = $false
+            WeaponBaseDamageMinimumRule = 'HitsPerAttack'
+        }
+
+        ReactionTiming = @{
+            OfferOn = 'FirstSuccessfulEligibleTrigger'
+            DeclineConsumesReaction = $false
+            ReofferAfterDecline = $true
+            UseConsumesReaction = $true
+            Refresh = 'StartOfOwnTurn'
+            FailedEvasionCreatesOffer = $false
+            FailedAccuracyCreatesOffer = $false
+        }
+
+        HitResolution = @(
+            'ResolveEvasion'
+            'StopHitIfEvaded'
+            'ResolveAccuracyAgainstDefense'
+            'StopHitIfAccuracyFails'
+            'OfferEligibleReaction'
+            'ResolveMatchingArmorMitigation'
+            'ApplyFinalDamage'
+            'ApplyEligibleAttachedEffects'
+            'CheckDefeat'
+            'StopRemainingHitsIfDefeated'
+        )
+
+        Defeat = @{
+            CheckAfterEveryHit = $true
+            StopRemainingHits = $true
+            UnresolvedHitDamageIsLost = $true
+            DefaultRetargeting = $false
+            ExplicitRuleMayPermitRetargeting = $true
+        }
+
+        Deferred = @{
+            TargetRangeAndLineOfSight = $true
+            AttachedEffectEligibility = $true
+            IndividualReactionOutcomes = $true
+            PoisonSpecifics = $true
+        }
+    }
+
+    Armor = @{
+        DesignStatus = 'WorkingConcept'
+        ExactArmorProfilesFinalized = $false
+        UsesRawArmorValues = $true
+        HigherRawValueIsBetter = $true
+
+        Slots = @(
+            'Head'
+            'Chest'
+            'Left Arm'
+            'Right Arm'
+            'Left Leg'
+            'Right Leg'
+        )
+
+        Ratings = @(
+            'Blunt'
+            'Slicing'
+            'Stabbing'
+        )
+
+        EmptySlotArmor = 0
+        NaturalArmorMayApply = $true
+        MatchingDamageTypeOnly = $true
+        ResolvePerSuccessfulHit = $true
+
+        Mitigation = @{
+            Model = 'DiminishingReturns'
+            ArmorScale = 100
+            Formula = 'ArmorDividedByArmorPlusScale'
+            MaximumMitigationPercent = 80
+            FinalDamageRounding = 'Floor'
+            MinimumFinalDamage = 1
+            RecommendedNormalMaximumArmor = 300
+        }
     }
 
     AttackResolution = @(

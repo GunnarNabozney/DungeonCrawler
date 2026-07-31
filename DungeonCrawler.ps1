@@ -28,6 +28,7 @@ $RaceDataPath = Join-Path $AppRoot 'Data\Races.psd1'
 $SkillDataPath = Join-Path $AppRoot 'Data\Skills.psd1'
 $GameRulesPath = Join-Path $AppRoot 'Data\GameRules.psd1'
 $CombatRulesPath = Join-Path $AppRoot 'Data\CombatRules.psd1'
+$WeaponTypeDataPath = Join-Path $AppRoot 'Data\WeaponTypes.psd1'
 $ProgressionRulesPath = Join-Path $AppRoot 'Data\ProgressionRules.psd1'
 
 $RequiredFiles = @(
@@ -36,6 +37,7 @@ $RequiredFiles = @(
     $SkillDataPath
     $GameRulesPath
     $CombatRulesPath
+    $WeaponTypeDataPath
     $ProgressionRulesPath
 ) + $ModulePaths
 
@@ -58,6 +60,7 @@ $RaceData = Import-PowerShellDataFile -LiteralPath $RaceDataPath
 $SkillData = Import-PowerShellDataFile -LiteralPath $SkillDataPath
 $GameRules = Import-PowerShellDataFile -LiteralPath $GameRulesPath
 $CombatRules = Import-PowerShellDataFile -LiteralPath $CombatRulesPath
+$WeaponTypeData = Import-PowerShellDataFile -LiteralPath $WeaponTypeDataPath
 $ProgressionRules = Import-PowerShellDataFile -LiteralPath $ProgressionRulesPath
 
 function Assert-GameData {
@@ -396,6 +399,412 @@ function Assert-CombatRules {
     }
 }
 
+function Assert-AttackAndArmorRules {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Rules
+    )
+
+    foreach ($RequiredKey in @(
+        'PhysicalDamage'
+        'DamagePayload'
+        'DamageResult'
+        'Attack'
+        'Armor'
+    )) {
+        if (-not $Rules.ContainsKey($RequiredKey)) {
+            throw "CombatRules.psd1 is missing attack or armor key: $RequiredKey"
+        }
+    }
+
+    if ($Rules.Accuracy.Rounding -ne 'FloorBeforeClamp') {
+        throw 'Accuracy must round down before applying its chance limits.'
+    }
+
+    $ExpectedDamageTypes = 'Blunt,Slicing,Stabbing'
+    $ActualDamageTypes = @($Rules.PhysicalDamage.Types) -join ','
+
+    if ($ActualDamageTypes -ne $ExpectedDamageTypes) {
+        throw 'Physical damage types must be Blunt, Slicing, and Stabbing.'
+    }
+
+    if (
+        $Rules.PhysicalDamage.GenericPhysicalTypeAllowed -or
+        $Rules.PhysicalDamage.AutomaticStatusEffects -or
+        -not $Rules.PhysicalDamage.MatchingArmorProfileRequired
+    ) {
+        throw 'Physical damage-type behavior does not match the approved design.'
+    }
+
+    $ExpectedPayloadFields = @(
+        'SourceCombatantId'
+        'TargetCombatantId'
+        'TargetBodyLocation'
+        'SourceKind'
+        'SourceId'
+        'HitNumber'
+        'HitCount'
+        'DamageComponents'
+        'AttachedEffects'
+    ) -join ','
+
+    $ActualPayloadFields =
+        @($Rules.DamagePayload.RequiredFields) -join ','
+
+    if (
+        -not $Rules.DamagePayload.OnePayloadPerHit -or
+        -not $Rules.DamagePayload.ContainsResolvedRawDamage -or
+        $Rules.DamagePayload.ContainsDamageFormula -or
+        $ActualPayloadFields -ne $ExpectedPayloadFields
+    ) {
+        throw 'Damage payload rules do not match the approved design.'
+    }
+
+    $ExpectedComponentFields = 'DamageType,RawAmount'
+    $ActualComponentFields =
+        @($Rules.DamagePayload.DamageComponentFields) -join ','
+
+    if ($ActualComponentFields -ne $ExpectedComponentFields) {
+        throw 'Damage component fields do not match the approved design.'
+    }
+
+    $ExpectedResultFields = @(
+        'RawDamage'
+        'DamageType'
+        'ArmorValue'
+        'MitigationPercent'
+        'PreventedDamage'
+        'FinalDamage'
+        'HealthBefore'
+        'HealthAfter'
+        'TargetDefeated'
+    ) -join ','
+
+    $ActualResultFields =
+        @($Rules.DamageResult.RequiredFields) -join ','
+
+    if (
+        -not $Rules.DamageResult.PreservePerComponentResults -or
+        $ActualResultFields -ne $ExpectedResultFields
+    ) {
+        throw 'Damage result rules do not match the approved design.'
+    }
+
+    $Attack = $Rules.Attack
+    $ExpectedLocations =
+        'Head,Chest,Left Arm,Right Arm,Left Leg,Right Leg'
+    $ActualLocations =
+        @($Attack.Targeting.BodyLocations) -join ','
+
+    if (
+        -not $Attack.Targeting.BodyLocationRequired -or
+        -not $Attack.Targeting.MultiHitKeepsSelectedLocation -or
+        $ActualLocations -ne $ExpectedLocations
+    ) {
+        throw 'Attack body-location targeting does not match the approved design.'
+    }
+
+    $ExpectedSubtotalComponents =
+        'WeaponBaseDamage,CurrentEffectiveAssociatedAttribute'
+    $ActualSubtotalComponents =
+        @($Attack.RawDamage.WeaponSubtotalComponents) -join ','
+
+    if (
+        $ActualSubtotalComponents -ne $ExpectedSubtotalComponents -or
+        [int]$Attack.RawDamage.AttributeContributionRatio -ne 1 -or
+        $Attack.RawDamage.WeaponSkillContributesByDefault
+    ) {
+        throw 'Weapon raw-damage inputs do not match the approved design.'
+    }
+
+    $PerkContribution = $Attack.RawDamage.PerkContribution
+
+    if (
+        -not $PerkContribution.PercentageOnly -or
+        -not $PerkContribution.StoredAsWholeNumber -or
+        $PerkContribution.Combination -ne 'Add' -or
+        $PerkContribution.AppliedTo -ne 'WeaponSubtotal' -or
+        -not $PerkContribution.AppliedOncePerAttack -or
+        $PerkContribution.Rounding -ne 'Floor'
+    ) {
+        throw 'Perk damage contribution rules do not match the approved design.'
+    }
+
+    $MultiHit = $Attack.MultiHit
+
+    if (
+        $MultiHit.MechanicalProperty -ne 'HitsPerAttack' -or
+        $MultiHit.PropertyOwner -ne 'WeaponType' -or
+        -not $MultiHit.IndividualWeaponOverrideAllowed -or
+        [int]$MultiHit.MinimumHits -ne 1 -or
+        [int]$MultiHit.MaximumHits -ne 3 -or
+        $MultiHit.SpeedLabels['1'] -ne 'Slow' -or
+        $MultiHit.SpeedLabels['2'] -ne 'Normal' -or
+        $MultiHit.SpeedLabels['3'] -ne 'Fast' -or
+        -not $MultiHit.TotalRawDamageCalculatedOnce -or
+        -not $MultiHit.AttributeAppliedOncePerAttack -or
+        -not $MultiHit.PerksAppliedOncePerAttack -or
+        $MultiHit.Division -ne 'EvenWithEarliestRemainder' -or
+        $MultiHit.FailedHitDamageRedistributed -or
+        $MultiHit.WeaponBaseDamageMinimumRule -ne 'HitsPerAttack'
+    ) {
+        throw 'Multi-hit rules do not match the approved design.'
+    }
+
+    $ReactionTiming = $Attack.ReactionTiming
+
+    if (
+        $ReactionTiming.OfferOn -ne
+            'FirstSuccessfulEligibleTrigger' -or
+        $ReactionTiming.DeclineConsumesReaction -or
+        -not $ReactionTiming.ReofferAfterDecline -or
+        -not $ReactionTiming.UseConsumesReaction -or
+        $ReactionTiming.Refresh -ne 'StartOfOwnTurn' -or
+        $ReactionTiming.FailedEvasionCreatesOffer -or
+        $ReactionTiming.FailedAccuracyCreatesOffer
+    ) {
+        throw 'Reaction offer timing does not match the approved design.'
+    }
+
+    $ExpectedHitResolution = @(
+        'ResolveEvasion'
+        'StopHitIfEvaded'
+        'ResolveAccuracyAgainstDefense'
+        'StopHitIfAccuracyFails'
+        'OfferEligibleReaction'
+        'ResolveMatchingArmorMitigation'
+        'ApplyFinalDamage'
+        'ApplyEligibleAttachedEffects'
+        'CheckDefeat'
+        'StopRemainingHitsIfDefeated'
+    ) -join ','
+
+    $ActualHitResolution =
+        @($Attack.HitResolution) -join ','
+
+    if ($ActualHitResolution -ne $ExpectedHitResolution) {
+        throw 'Per-hit Attack resolution does not match the approved design.'
+    }
+
+    if (
+        -not $Attack.Defeat.CheckAfterEveryHit -or
+        -not $Attack.Defeat.StopRemainingHits -or
+        -not $Attack.Defeat.UnresolvedHitDamageIsLost -or
+        $Attack.Defeat.DefaultRetargeting -or
+        -not $Attack.Defeat.ExplicitRuleMayPermitRetargeting
+    ) {
+        throw 'Multi-hit defeat handling does not match the approved design.'
+    }
+
+    $Armor = $Rules.Armor
+    $ActualArmorSlots = @($Armor.Slots) -join ','
+    $ActualArmorRatings = @($Armor.Ratings) -join ','
+
+    if (
+        $Armor.DesignStatus -ne 'WorkingConcept' -or
+        $Armor.ExactArmorProfilesFinalized -or
+        -not $Armor.UsesRawArmorValues -or
+        -not $Armor.HigherRawValueIsBetter -or
+        $ActualArmorSlots -ne $ExpectedLocations -or
+        $ActualArmorRatings -ne $ExpectedDamageTypes -or
+        [int]$Armor.EmptySlotArmor -ne 0 -or
+        -not $Armor.NaturalArmorMayApply -or
+        -not $Armor.MatchingDamageTypeOnly -or
+        -not $Armor.ResolvePerSuccessfulHit
+    ) {
+        throw 'Armor targeting and identity rules do not match the approved design.'
+    }
+
+    $Mitigation = $Armor.Mitigation
+
+    if (
+        $Mitigation.Model -ne 'DiminishingReturns' -or
+        [int]$Mitigation.ArmorScale -ne 100 -or
+        $Mitigation.Formula -ne 'ArmorDividedByArmorPlusScale' -or
+        [int]$Mitigation.MaximumMitigationPercent -ne 80 -or
+        $Mitigation.FinalDamageRounding -ne 'Floor' -or
+        [int]$Mitigation.MinimumFinalDamage -ne 1 -or
+        [int]$Mitigation.RecommendedNormalMaximumArmor -ne 300
+    ) {
+        throw 'Physical armor mitigation does not match the approved design.'
+    }
+}
+
+function Assert-WeaponTypeData {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$WeaponTypeData,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Skills,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$GameRules,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$CombatRules
+    )
+
+    foreach ($RequiredKey in @(
+        'DesignStatus'
+        'WeaponTypeOrder'
+        'IndividualWeaponRequiredProperties'
+        'TypeDefaultProperties'
+        'OverrideContainer'
+        'AllowedOverrideProperties'
+        'ResolutionPrecedence'
+        'PendingTypeAssignments'
+        'WeaponTypes'
+    )) {
+        if (-not $WeaponTypeData.ContainsKey($RequiredKey)) {
+            throw "WeaponTypes.psd1 is missing key: $RequiredKey"
+        }
+    }
+
+    $ExpectedTypeOrder = @(
+        'One-Handed Sword'
+        'Two-Handed Sword'
+        'Finesse Sword'
+        'One-Handed Axe'
+        'Two-Handed Axe'
+        'One-Handed Hammer'
+        'Two-Handed Hammer'
+        'Dagger'
+        'Bow'
+        'Crossbow'
+        'Unarmed Strike'
+        'Natural Weapon'
+    )
+
+    if (
+        (@($WeaponTypeData.WeaponTypeOrder) -join ',') -ne
+        ($ExpectedTypeOrder -join ',')
+    ) {
+        throw 'Weapon type order does not match the approved taxonomy.'
+    }
+
+    if (
+        $WeaponTypeData.DesignStatus -ne
+            'ApprovedDefaultsWithPendingHitCounts' -or
+        $WeaponTypeData.OverrideContainer -ne 'Overrides' -or
+        (@($WeaponTypeData.PendingTypeAssignments) -join ',') -ne
+            'HitsPerAttack'
+    ) {
+        throw 'Weapon type data status does not match the approved design.'
+    }
+
+    $ExpectedIndividualProperties =
+        'Id,Name,WeaponType,BaseDamage'
+    $ActualIndividualProperties =
+        @($WeaponTypeData.IndividualWeaponRequiredProperties) -join ','
+
+    $ExpectedDefaultProperties =
+        'WeaponSkill,AssociatedAttribute,DamageType,HitsPerAttack'
+    $ActualDefaultProperties =
+        @($WeaponTypeData.TypeDefaultProperties) -join ','
+
+    $ExpectedOverrideProperties =
+        'WeaponSkill,AssociatedAttribute,DamageType,HitsPerAttack'
+    $ActualOverrideProperties =
+        @($WeaponTypeData.AllowedOverrideProperties) -join ','
+
+    $ExpectedResolution =
+        'IndividualWeaponOverride,WeaponTypeDefault'
+    $ActualResolution =
+        @($WeaponTypeData.ResolutionPrecedence) -join ','
+
+    if (
+        $ActualIndividualProperties -ne $ExpectedIndividualProperties -or
+        $ActualDefaultProperties -ne $ExpectedDefaultProperties -or
+        $ActualOverrideProperties -ne $ExpectedOverrideProperties -or
+        $ActualResolution -ne $ExpectedResolution
+    ) {
+        throw 'Weapon property ownership or override rules are incorrect.'
+    }
+
+    $ExpectedDefaults = @{
+        'One-Handed Sword' = @('Swords', 'Strength', 'Slicing')
+        'Two-Handed Sword' = @('Swords', 'Strength', 'Slicing')
+        'Finesse Sword' = @('Swords', 'Agility', 'Stabbing')
+        'One-Handed Axe' = @('Axes', 'Strength', 'Slicing')
+        'Two-Handed Axe' = @('Axes', 'Strength', 'Slicing')
+        'One-Handed Hammer' = @('Hammers', 'Strength', 'Blunt')
+        'Two-Handed Hammer' = @('Hammers', 'Strength', 'Blunt')
+        Dagger = @('Daggers', 'Agility', 'Stabbing')
+        Bow = @('Archery', 'Agility', 'Stabbing')
+        Crossbow = @('Archery', 'Agility', 'Stabbing')
+        'Unarmed Strike' = @('Unarmed', 'Strength', 'Blunt')
+        'Natural Weapon' = @('Unarmed', 'Strength', $null)
+    }
+
+    $AllowedDamageTypes = @($CombatRules.PhysicalDamage.Types)
+
+    foreach ($WeaponTypeName in $ExpectedTypeOrder) {
+        if (-not $WeaponTypeData.WeaponTypes.ContainsKey($WeaponTypeName)) {
+            throw "Weapon type is missing: $WeaponTypeName"
+        }
+
+        $WeaponType = $WeaponTypeData.WeaponTypes[$WeaponTypeName]
+
+        foreach ($PropertyName in @(
+            'WeaponSkill'
+            'AssociatedAttribute'
+            'DamageType'
+            'HitsPerAttack'
+            'RequiredOverrides'
+        )) {
+            if (-not $WeaponType.ContainsKey($PropertyName)) {
+                throw "Weapon type '$WeaponTypeName' is missing: $PropertyName"
+            }
+        }
+
+        $Expected = $ExpectedDefaults[$WeaponTypeName]
+
+        if (
+            $WeaponType.WeaponSkill -ne $Expected[0] -or
+            $WeaponType.AssociatedAttribute -ne $Expected[1] -or
+            $WeaponType.DamageType -ne $Expected[2]
+        ) {
+            throw "Weapon type defaults are incorrect: $WeaponTypeName"
+        }
+
+        if ($Skills.SkillOrder -notcontains $WeaponType.WeaponSkill) {
+            throw "Weapon type '$WeaponTypeName' uses an unknown skill."
+        }
+
+        if (
+            $GameRules.Attributes -notcontains
+            $WeaponType.AssociatedAttribute
+        ) {
+            throw "Weapon type '$WeaponTypeName' uses an unknown attribute."
+        }
+
+        if (
+            $null -ne $WeaponType.DamageType -and
+            $AllowedDamageTypes -notcontains $WeaponType.DamageType
+        ) {
+            throw "Weapon type '$WeaponTypeName' uses an unknown damage type."
+        }
+
+        if ($null -ne $WeaponType.HitsPerAttack) {
+            $HitsPerAttack = [int]$WeaponType.HitsPerAttack
+
+            if ($HitsPerAttack -lt 1 -or $HitsPerAttack -gt 3) {
+                throw "Weapon type '$WeaponTypeName' has invalid HitsPerAttack."
+            }
+        }
+    }
+
+    $NaturalWeapon =
+        $WeaponTypeData.WeaponTypes['Natural Weapon']
+
+    if (
+        $null -ne $NaturalWeapon.DamageType -or
+        @($NaturalWeapon.RequiredOverrides) -notcontains 'DamageType'
+    ) {
+        throw 'Natural Weapon must require an individual DamageType override.'
+    }
+}
 function Assert-ProgressionRules {
     param(
         [Parameter(Mandatory = $true)]
@@ -482,6 +891,12 @@ function Assert-ProgressionRules {
 
 Assert-GameData -Races $RaceData -Skills $SkillData -Rules $GameRules
 Assert-CombatRules -Rules $CombatRules
+Assert-AttackAndArmorRules -Rules $CombatRules
+Assert-WeaponTypeData `
+    -WeaponTypeData $WeaponTypeData `
+    -Skills $SkillData `
+    -GameRules $GameRules `
+    -CombatRules $CombatRules
 Assert-ProgressionRules `
     -Rules $ProgressionRules `
     -GameRules $GameRules
