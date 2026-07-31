@@ -1,25 +1,47 @@
 @echo off
-setlocal EnableExtensions DisableDelayedExpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
-set "BT_Module=%~dp0..\BatchTerminal.psm1"
-set "BT_PowerShell=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "BTERM_Module=%~dp0..\BatchTerminal.psm1"
+set "BTERM_PowerShell=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 
-if not exist "%BT_Module%" (
-    echo [FAIL] BatchTerminal module exists
-    exit /b 1
+call "!BatchTest!" begin suite "BatchTerminal 1.0 deterministic self-test"
+
+if not exist "!BTERM_Module!" (
+    call "!BatchTest!" record failure because "BatchTerminal module exists"
+    goto :Summary
 )
 
-if not exist "%BT_PowerShell%" (
-    echo [FAIL] Windows PowerShell 5.1 exists
-    exit /b 1
+if not exist "!BTERM_PowerShell!" (
+    call "!BatchTest!" record failure because "Windows PowerShell 5.1 exists"
+    goto :Summary
 )
 
-"%BT_PowerShell%" ^
+call "!BatchTest!" create temporary file into BTERM_Summary
+if errorlevel 1 (
+    call "!BatchTest!" record failure because "Create BatchTerminal summary fixture"
+    goto :Summary
+)
+
+"!BTERM_PowerShell!" ^
     -NoLogo ^
     -NoProfile ^
     -NonInteractive ^
     -ExecutionPolicy Bypass ^
-    -Command "$ErrorActionPreference = 'Stop'; Import-Module -Name $env:BT_Module -Force; $Result = Invoke-BatchTerminalSelfTest; foreach ($Test in $Result.Results) { $Line = '[' + $Test.Status + '] ' + $Test.Name; if (-not [string]::IsNullOrWhiteSpace($Test.Detail)) { $Line += ' - ' + $Test.Detail }; [Console]::WriteLine($Line) }; [Console]::WriteLine(''); [Console]::WriteLine('================================='); [Console]::WriteLine('Tests: ' + $Result.Total); [Console]::WriteLine('Passed: ' + $Result.Passed); [Console]::WriteLine('Failed: ' + $Result.Failed); if ($Result.Failed -ne 0) { [Console]::WriteLine('RESULT: FAIL'); exit 1 }; [Console]::WriteLine('RESULT: PASS'); exit 0"
+    -Command "$ErrorActionPreference = 'Stop'; Import-Module -Name $env:BTERM_Module -Force; $Result = Invoke-BatchTerminalSelfTest; foreach ($Test in $Result.Results) { $Line = '[' + $Test.Status + '] ' + $Test.Name; if (-not [string]::IsNullOrWhiteSpace($Test.Detail)) { $Line += ' - ' + $Test.Detail }; [Console]::WriteLine($Line) }; $NewLine = [Environment]::NewLine; $SummaryText = 'Tests=' + [string]$Result.Total + $NewLine + 'Passed=' + [string]$Result.Passed + $NewLine + 'Failed=' + [string]$Result.Failed + $NewLine + 'Skipped=0' + $NewLine; [System.IO.File]::WriteAllText($env:BTERM_Summary, $SummaryText, [System.Text.Encoding]::ASCII); exit 0"
 
-set "BT_Exit=%errorlevel%"
-exit /b %BT_Exit%
+set "BTERM.Exit=!errorlevel!"
+
+if not "!BTERM.Exit!"=="0" (
+    call "!BatchTest!" record failure because "Run the BatchTerminal PowerShell self-test - exit !BTERM.Exit!"
+    goto :Summary
+)
+
+call "!BatchTest!" import summary from "!BTERM_Summary!"
+if errorlevel 1 (
+    call "!BatchTest!" record failure because "Import the BatchTerminal test summary"
+)
+
+:Summary
+call "!BatchTest!" finish suite
+exit /b !errorlevel!

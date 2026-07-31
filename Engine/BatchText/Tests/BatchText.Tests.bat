@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "Text=%~dp0..\BatchText.bat"
-set "BatchTest=%~dp0..\..\BatchRuntime\BatchTest.bat"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 set "FixtureBuilder=%~dp0Create-BatchTextFixtures.ps1"
 set "PowerShell=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 set "FixtureRoot=%TEMP%\BatchText-Tests-!RANDOM!-!RANDOM!"

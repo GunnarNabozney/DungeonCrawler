@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "Math=%~dp0..\BatchMath.bat"
-set "BatchTest=%~dp0..\..\BatchRuntime\BatchTest.bat"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 set "Runtime=%~dp0..\..\BatchRuntime\BatchRuntime.bat"
 set "MathModule=%~dp0..\..\BatchRuntime\Modules\Math.bat"
 

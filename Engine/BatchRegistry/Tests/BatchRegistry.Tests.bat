@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "Registry=%~dp0..\BatchRegistry.bat"
-set "BatchTest=%~dp0..\..\BatchRuntime\BatchTest.bat"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 
 call "!BatchTest!" begin suite "BatchRegistry 1.0 human-readable self-test"
 

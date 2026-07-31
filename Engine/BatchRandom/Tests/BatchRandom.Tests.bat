@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "RandomComponent=%~dp0..\BatchRandom.bat"
-set "BatchTest=%~dp0..\..\BatchRuntime\BatchTest.bat"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 set "Runtime=%~dp0..\..\BatchRuntime\BatchRuntime.bat"
 set "RandomModule=%~dp0..\..\BatchRuntime\Modules\Random.bat"
 

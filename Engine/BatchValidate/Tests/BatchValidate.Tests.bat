@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "Validator=%~dp0..\BatchValidate.bat"
-set "BatchTest=%~dp0..\..\BatchRuntime\BatchTest.bat"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 
 call "!BatchTest!" begin suite "BatchValidate 1.0 deterministic self-test"
 

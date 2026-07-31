@@ -4,7 +4,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Codec=%~dp0..\BatchCodec.bat"
 set "Helper=%~dp0..\BatchCodecOps.ps1"
 set "Text=%~dp0..\..\BatchText\BatchText.bat"
-set "BatchTest=%~dp0..\..\BatchRuntime\BatchTest.bat"
+set "BatchTest=%~dp0..\..\BatchTest\BatchTest.bat"
 set "PowerShell=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 set "FixtureRoot=%TEMP%\BatchCodecTests-!RANDOM!-!RANDOM!-!RANDOM!"
 set "Documents="
