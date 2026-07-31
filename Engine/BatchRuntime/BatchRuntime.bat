@@ -288,7 +288,9 @@ set "BRT.O.!BRT.Internal.Invoke.ReturnObject!.__Sealed=1"
 set "!BRT.Internal.Invoke.OutputVar!=!BRT.Internal.Invoke.ReturnObject!"
 call :ReleaseFrame "!BRT.Internal.Invoke.Frame!"
 call :ClearPrefix "BRT.X.Schema."
-exit /b 0:Invoke.FailUnknownParameter
+exit /b 0
+
+:Invoke.FailUnknownParameter
 call :SetError 20 UnknownParameter "The function schema does not contain the supplied named parameter." "!BRT.Internal.Invoke.Module!" "!BRT.Internal.Invoke.Function!" "!BRT.Internal.Invoke.ParameterName!" "Declared parameter" "!BRT.Internal.Invoke.ParameterName!"
 goto :Invoke.Cleanup20
 :Invoke.FailDuplicateParameter
