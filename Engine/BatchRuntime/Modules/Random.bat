@@ -190,10 +190,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Initialize"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Initialize "!Seed!"
+call "!RandomComponent!" :Initialize "!Seed!"
 if errorlevel 1 goto :Invoke.FailRandom
 set "StateValue=!BRNG.State!"
 set "DrawCountValue=!BRNG.DrawCount!"
@@ -208,10 +208,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Reseed"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Reseed "!Seed!"
+call "!RandomComponent!" :Reseed "!Seed!"
 if errorlevel 1 goto :Invoke.FailRandom
 set "StateValue=!BRNG.State!"
 set "DrawCountValue=!BRNG.DrawCount!"
@@ -226,10 +226,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Next"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Next Value
+call "!RandomComponent!" :Next Value
 if errorlevel 1 goto :Invoke.FailRandom
 set "Result1Name=Value"
 set "Result1Value=!Value!"
@@ -240,10 +240,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Integer"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Integer "!Minimum!" "!Maximum!" Value
+call "!RandomComponent!" :Integer "!Minimum!" "!Maximum!" Value
 if errorlevel 1 goto :Invoke.FailRandom
 set "Result1Name=Value"
 set "Result1Value=!Value!"
@@ -254,10 +254,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Chance"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Chance "!Percent!" Hit
+call "!RandomComponent!" :Chance "!Percent!" Hit
 if errorlevel 1 goto :Invoke.FailRandom
 set "Result1Name=Hit"
 set "Result1Value=!Hit!"
@@ -268,10 +268,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Roll"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Roll "!Count!" "!Sides!" Total
+call "!RandomComponent!" :Roll "!Count!" "!Sides!" Total
 if errorlevel 1 goto :Invoke.FailRandom
 set "Result1Name=Total"
 set "Result1Value=!Total!"
@@ -282,10 +282,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=ChooseIndex"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :ChooseIndex "!Count!" Index
+call "!RandomComponent!" :ChooseIndex "!Count!" Index
 if errorlevel 1 goto :Invoke.FailRandom
 set "Result1Name=Index"
 set "Result1Value=!Index!"
@@ -296,10 +296,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=GetState"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :GetState StateValue DrawCountValue
+call "!RandomComponent!" :GetState StateValue DrawCountValue
 if errorlevel 1 goto :Invoke.FailRandom
 set "Result1Name=State"
 set "Result1Value=!StateValue!"
@@ -312,10 +312,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 set "Function=Restore"
-set "Random=%~dp0..\..\BatchRandom\BatchRandom.bat"
+set "RandomComponent=%~dp0..\..\BatchRandom\BatchRandom.bat"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 if errorlevel 1 goto :Invoke.FailRuntime
-call "!Random!" :Restore "!State!" "!DrawCount!"
+call "!RandomComponent!" :Restore "!State!" "!DrawCount!"
 if errorlevel 1 goto :Invoke.FailRandom
 set "StateValue=!BRNG.State!"
 set "DrawCountValue=!BRNG.DrawCount!"

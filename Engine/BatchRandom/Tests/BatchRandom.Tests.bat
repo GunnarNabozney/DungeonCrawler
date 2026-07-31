@@ -147,7 +147,7 @@ call "!RandomComponent!" :Reseed 1
 call "!RandomComponent!" shuffle 5 indices into Actual
 set "ActualExit=!errorlevel!"
 call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Shuffle a bounded index set"
-call "!BatchTest!" expect value "!Actual!" to equal 4,3,5,1,2 because "Fisher-Yates order is deterministic"
+call "!BatchTest!" expect value "!Actual!" to equal "4,3,5,1,2" because "Fisher-Yates order is deterministic"
 call "!RandomComponent!" :ShuffleIndices 257 Actual
 set "ActualExit=!errorlevel!"
 call "!BatchTest!" expect exit "!ActualExit!" to equal 20 because "Reject an oversized shuffle"

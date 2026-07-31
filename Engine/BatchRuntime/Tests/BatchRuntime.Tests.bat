@@ -60,6 +60,13 @@ call "!Runtime!" read field Sum from object "!Result!" into Actual
 call "!BatchTest!" expect value "!Actual!" to equal 42 because "Normalized integers remain numeric"
 call "!Runtime!" release object "!Result!"
 
+call "!Runtime!" run Test Add into Result with Left 1073741824 and Right 0
+set "ActualExit=!errorlevel!"
+call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Validate a ten-digit integer return"
+call "!Runtime!" read field Sum from object "!Result!" into Actual
+call "!BatchTest!" expect value "!Actual!" to equal 1073741824 because "Ten-digit return validation preserves its caller field loop"
+call "!Runtime!" release object "!Result!"
+
 call "!Runtime!" run Test Clamp into Result with Value 150
 set "ActualExit=!errorlevel!"
 call "!BatchTest!" expect exit "!ActualExit!" to equal 0 because "Apply default parameter values"

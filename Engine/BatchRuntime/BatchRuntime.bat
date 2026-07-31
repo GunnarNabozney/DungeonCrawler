@@ -1789,14 +1789,14 @@ goto :DecimalWithinLimit.Length
 :DecimalWithinLimit.CompareLength
 if !BRT.Internal.Length! LSS 10 exit /b 0
 if !BRT.Internal.Length! GTR 10 exit /b 1
-set "BRT.Internal.Index=0"
+set "BRT.Internal.DecimalIndex=0"
 :DecimalWithinLimit.Digit
-if !BRT.Internal.Index! GEQ 10 exit /b 0
-set "BRT.Internal.LeftDigit=!BRT.Internal.Number:~%BRT.Internal.Index%,1!"
-set "BRT.Internal.RightDigit=!BRT.Internal.Limit:~%BRT.Internal.Index%,1!"
+if !BRT.Internal.DecimalIndex! GEQ 10 exit /b 0
+set "BRT.Internal.LeftDigit=!BRT.Internal.Number:~%BRT.Internal.DecimalIndex%,1!"
+set "BRT.Internal.RightDigit=!BRT.Internal.Limit:~%BRT.Internal.DecimalIndex%,1!"
 if !BRT.Internal.LeftDigit! LSS !BRT.Internal.RightDigit! exit /b 0
 if !BRT.Internal.LeftDigit! GTR !BRT.Internal.RightDigit! exit /b 1
-set /a BRT.Internal.Index+=1
+set /a BRT.Internal.DecimalIndex+=1
 goto :DecimalWithinLimit.Digit
 
 :ValidateAlphaCharacter
