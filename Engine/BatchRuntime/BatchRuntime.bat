@@ -637,30 +637,28 @@ call :ReleaseFrame "!BRT.Internal.Invoke.Frame!"
 call :ClearPrefix "BRT.X.Schema."
 exit /b 60
 
+
 :ReturnError
-rem Module-only helper. Calling this command closes the module function's setlocal.
-if "!BRT.LastError!"=="@NULL" (
-    endlocal
-    exit /b 30
-)
-set "BRT.Internal.ReturnError.Frame=!BRT.ActiveFrame!"
-if "!BRT.Internal.ReturnError.Frame!"=="@NULL" (
-    endlocal
-    exit /b 30
-)
-if not "!BRT.F.%BRT.Internal.ReturnError.Frame%.__Exists!"=="1" (
-    endlocal
-    exit /b 30
-)
-set "BRT.Internal.ReturnError.Code=!BRT.O.%BRT.LastError%.Code!"
-set "BRT.Internal.ReturnError.Kind=!BRT.O.%BRT.LastError%.Kind!"
-set "BRT.Internal.ReturnError.Message=!BRT.O.%BRT.LastError%.Message!"
-set "BRT.Internal.ReturnError.Module=!BRT.O.%BRT.LastError%.Module!"
-set "BRT.Internal.ReturnError.Function=!BRT.O.%BRT.LastError%.Function!"
-set "BRT.Internal.ReturnError.Parameter=!BRT.O.%BRT.LastError%.Parameter!"
-set "BRT.Internal.ReturnError.Expected=!BRT.O.%BRT.LastError%.Expected!"
-set "BRT.Internal.ReturnError.Actual=!BRT.O.%BRT.LastError%.Actual!"
-endlocal & set "BRT.F.%BRT.Internal.ReturnError.Frame%.PropagatedError=1" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Code=%BRT.Internal.ReturnError.Code%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Kind=%BRT.Internal.ReturnError.Kind%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Message=%BRT.Internal.ReturnError.Message%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Module=%BRT.Internal.ReturnError.Module%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Function=%BRT.Internal.ReturnError.Function%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Parameter=%BRT.Internal.ReturnError.Parameter%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Expected=%BRT.Internal.ReturnError.Expected%" & set "BRT.F.%BRT.Internal.ReturnError.Frame%.Error.Actual=%BRT.Internal.ReturnError.Actual%" & exit /b %BRT.Internal.ReturnError.Code%
+rem Module helper. Capture the current structured error without closing caller scope.
+set "BRT.ReturnError.Code=30"
+set "BRT.ReturnError.Kind=ModuleInvocationFailed"
+set "BRT.ReturnError.Message=A module runtime call failed without a structured error."
+set "BRT.ReturnError.Module="
+set "BRT.ReturnError.Function="
+set "BRT.ReturnError.Parameter="
+set "BRT.ReturnError.Expected=Structured runtime error"
+set "BRT.ReturnError.Actual=Missing"
+if "!BRT.LastError!"=="@NULL" exit /b 30
+if not "!BRT.O.%BRT.LastError%.__Exists!"=="1" exit /b 30
+set "BRT.ReturnError.Code=!BRT.O.%BRT.LastError%.Code!"
+set "BRT.ReturnError.Kind=!BRT.O.%BRT.LastError%.Kind!"
+set "BRT.ReturnError.Message=!BRT.O.%BRT.LastError%.Message!"
+set "BRT.ReturnError.Module=!BRT.O.%BRT.LastError%.Module!"
+set "BRT.ReturnError.Function=!BRT.O.%BRT.LastError%.Function!"
+set "BRT.ReturnError.Parameter=!BRT.O.%BRT.LastError%.Parameter!"
+set "BRT.ReturnError.Expected=!BRT.O.%BRT.LastError%.Expected!"
+set "BRT.ReturnError.Actual=!BRT.O.%BRT.LastError%.Actual!"
+exit /b !BRT.ReturnError.Code!
 
 :BindParameters
 call :RequireInitialized

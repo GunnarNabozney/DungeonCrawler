@@ -38,9 +38,12 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & set "BRT.O.%ReturnObject%.Value=%Value%"
 exit /b 0
+
+:Invoke.FailRuntime
+call "!BRT.Runtime!" :ReturnError
+set "FailureExit=!errorlevel!"
+setlocal DisableDelayedExpansion
+endlocal & endlocal & set "BRT.F.%Frame%.PropagatedError=1" & set "BRT.F.%Frame%.Error.Code=%BRT.ReturnError.Code%" & set "BRT.F.%Frame%.Error.Kind=%BRT.ReturnError.Kind%" & set "BRT.F.%Frame%.Error.Message=%BRT.ReturnError.Message%" & set "BRT.F.%Frame%.Error.Module=%BRT.ReturnError.Module%" & set "BRT.F.%Frame%.Error.Function=%BRT.ReturnError.Function%" & set "BRT.F.%Frame%.Error.Parameter=%BRT.ReturnError.Parameter%" & set "BRT.F.%Frame%.Error.Expected=%BRT.ReturnError.Expected%" & set "BRT.F.%Frame%.Error.Actual=%BRT.ReturnError.Actual%" & exit /b %FailureExit%

@@ -122,16 +122,13 @@ Bind schema parameters:
 call "!BRT.Runtime!" :BindParameters "!Frame!"
 ```
 
-Forward runtime failures before leaving local scope:
+Forward runtime failures to one module-owned failure label:
 
 ```bat
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 ```
 
-`:ReturnError` closes the module function's `setlocal`, preserves the innermost structured error on the active frame, and returns the original runtime exit code.
+The failure label calls `:ReturnError` to capture the structured error, then the module closes its own local scope and exports the captured fields to the active frame. Runtime helpers never close a caller-owned `setlocal`.
 
 Export return fields on the `endlocal` line:
 
@@ -202,7 +199,7 @@ Output variables must be identifiers and may not use runtime or command-environm
 
 ## Nested failure propagation
 
-When a nested call fails, the module forwards the error with `:ReturnError`. The outer invocation reconstructs the innermost structured error and propagates its exit-code family instead of replacing it with a generic module error.
+When a nested call fails, the module captures the error with `:ReturnError`, closes its own scope, and exports the fields to its frame. The outer invocation reconstructs the innermost structured error and propagates its exit-code family instead of replacing it with a generic module error.
 
 ## Exit-code families
 

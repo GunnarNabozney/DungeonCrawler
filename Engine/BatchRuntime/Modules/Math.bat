@@ -101,10 +101,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set /a Sum=Left+Right
 if !Left! GTR 0 if !Right! GTR 0 if !Sum! LSS 0 (
     endlocal
@@ -122,10 +119,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set "ClampedValue=!Value!"
 set "WasClamped=0"
 if !ClampedValue! LSS !Minimum! (
@@ -147,10 +141,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 if "!Divisor!"=="0" (
     endlocal
     exit /b 30
@@ -167,3 +158,9 @@ if not "!Remainder!"=="0" (
 )
 endlocal & set "BRT.O.%ReturnObject%.Quotient=%Quotient%"
 exit /b 0
+
+:Invoke.FailRuntime
+call "!BRT.Runtime!" :ReturnError
+set "FailureExit=!errorlevel!"
+setlocal DisableDelayedExpansion
+endlocal & endlocal & set "BRT.F.%Frame%.PropagatedError=1" & set "BRT.F.%Frame%.Error.Code=%BRT.ReturnError.Code%" & set "BRT.F.%Frame%.Error.Kind=%BRT.ReturnError.Kind%" & set "BRT.F.%Frame%.Error.Message=%BRT.ReturnError.Message%" & set "BRT.F.%Frame%.Error.Module=%BRT.ReturnError.Module%" & set "BRT.F.%Frame%.Error.Function=%BRT.ReturnError.Function%" & set "BRT.F.%Frame%.Error.Parameter=%BRT.ReturnError.Parameter%" & set "BRT.F.%Frame%.Error.Expected=%BRT.ReturnError.Expected%" & set "BRT.F.%Frame%.Error.Actual=%BRT.ReturnError.Actual%" & exit /b %FailureExit%

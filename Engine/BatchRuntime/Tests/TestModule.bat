@@ -211,10 +211,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set /a Sum=Left+Right
 endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
 exit /b 0
@@ -224,10 +221,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set "ClampedValue=!Value!"
 set "WasClamped=0"
 if !ClampedValue! LSS !Minimum! (
@@ -249,10 +243,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & (
     set "BRT.O.%ReturnObject%.Left=%Left%"
     set "BRT.O.%ReturnObject%.Right=%Right%"
@@ -264,20 +255,11 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 call "!BRT.Runtime!" :Object.Get "!Pair!" Left PairLeft
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 call "!BRT.Runtime!" :Object.Get "!Pair!" Right PairRight
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set /a Sum=PairLeft+PairRight
 endlocal & set "BRT.O.%ReturnObject%.Sum=%Sum%"
 exit /b 0
@@ -287,26 +269,14 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" Add InnerResult --Left "!Left!" --Right "!Right!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 call "!BRT.Runtime!" :Object.Get "!InnerResult!" Sum NestedSum
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 call "!BRT.Runtime!" :Object.Release "!InnerResult!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & set "BRT.O.%ReturnObject%.Sum=%NestedSum%"
 exit /b 0
 
@@ -315,10 +285,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & (
     set "BRT.O.%ReturnObject%.Color=%Color%"
     set "BRT.O.%ReturnObject%.Bright=%Bright%"
@@ -334,10 +301,7 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" Add InnerResult --Left 1
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & exit /b 30
 
 :Invoke.NestedBrokenReturn
@@ -346,10 +310,7 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" BrokenReturn InnerResult
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & exit /b 30
 
 :Invoke.DeepNest
@@ -357,30 +318,18 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "Frame=%~4"
 set "ReturnObject=%~5"
 call "!BRT.Runtime!" :BindParameters "!Frame!"
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 if "!Depth!"=="0" (
     set "NestedSum=2"
 ) else (
     set /a NextDepth=Depth-1
     call "!BRT.Runtime!" :Invoke "!SelfAlias!" DeepNest InnerResult --Depth "!NextDepth!"
-    if errorlevel 1 (
-        call "!BRT.Runtime!" :ReturnError
-        exit /b !errorlevel!
-    )
+    if errorlevel 1 goto :Invoke.FailRuntime
     call "!BRT.Runtime!" :Object.Get "!InnerResult!" Sum NestedSum
-    if errorlevel 1 (
-        call "!BRT.Runtime!" :ReturnError
-        exit /b !errorlevel!
-    )
+    if errorlevel 1 goto :Invoke.FailRuntime
     call "!BRT.Runtime!" :Object.Release "!InnerResult!"
-    if errorlevel 1 (
-        call "!BRT.Runtime!" :ReturnError
-        exit /b !errorlevel!
-    )
+    if errorlevel 1 goto :Invoke.FailRuntime
 )
 endlocal & set "BRT.O.%ReturnObject%.Sum=%NestedSum%"
 exit /b 0
@@ -391,9 +340,12 @@ set "Frame=%~4"
 set "ReturnObject=%~5"
 set "SelfAlias=!BRT.F.%Frame%.Module!"
 call "!BRT.Runtime!" :Invoke "!SelfAlias!" MakePair TemporaryObject --Left 20 --Right 22
-if errorlevel 1 (
-    call "!BRT.Runtime!" :ReturnError
-    exit /b !errorlevel!
-)
+if errorlevel 1 goto :Invoke.FailRuntime
 endlocal & set "BRT.O.%ReturnObject%.Value=42"
 exit /b 0
+
+:Invoke.FailRuntime
+call "!BRT.Runtime!" :ReturnError
+set "FailureExit=!errorlevel!"
+setlocal DisableDelayedExpansion
+endlocal & endlocal & set "BRT.F.%Frame%.PropagatedError=1" & set "BRT.F.%Frame%.Error.Code=%BRT.ReturnError.Code%" & set "BRT.F.%Frame%.Error.Kind=%BRT.ReturnError.Kind%" & set "BRT.F.%Frame%.Error.Message=%BRT.ReturnError.Message%" & set "BRT.F.%Frame%.Error.Module=%BRT.ReturnError.Module%" & set "BRT.F.%Frame%.Error.Function=%BRT.ReturnError.Function%" & set "BRT.F.%Frame%.Error.Parameter=%BRT.ReturnError.Parameter%" & set "BRT.F.%Frame%.Error.Expected=%BRT.ReturnError.Expected%" & set "BRT.F.%Frame%.Error.Actual=%BRT.ReturnError.Actual%" & exit /b %FailureExit%
